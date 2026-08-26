@@ -1,0 +1,6 @@
+{
+  "name": "Studio Portfolio Showcase & Client Presentation Builder",
+  "description": "Ultra-modern portfolio manager and custom client showcase generator built with React, Tailwind CSS, and Framer Motion. Easily curate, preview, share, and export standalone client showcases.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', sans-serif;
+    --font-space-grotesk: 'Space Grotesk', sans-serif;
+    --font-space-mono: 'Space Mono', monospace;
+    --font-archivo: 'Archivo Black', sans-serif;
+    --font-outfit: 'Outfit', sans-serif;
+    --font-syne: 'Syne', sans-serif;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    overflow-x: hidden;
+  }
+}
+
+.font-archivo {
+  font-family: 'Archivo Black', sans-serif;
+}
+
+.font-space-grotesk {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-space-mono {
+  font-family: 'Space Mono', monospace;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-syne {
+  font-family: 'Syne', sans-serif;
+}
+
+/* Sleek custom scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+  border: 2px solid #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Glass and sleek panel helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+}
+
+.glass-panel-elevated {
+  background: #FFFFFF;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.06);
+}
+
+/* Organic Morphing Animation */
+@keyframes fluidBlob {
+  0% {
+    border-radius: 42% 58% 65% 35% / 45% 40% 60% 55%;
+    transform: rotate(0deg) scale(1);
+  }
+  33% {
+    border-radius: 60% 40% 30% 70% / 55% 65% 35% 45%;
+    transform: rotate(120deg) scale(1.06);
+  }
+  66% {
+    border-radius: 35% 65% 70% 30% / 40% 50% 50% 60%;
+    transform: rotate(240deg) scale(0.96);
+  }
+  100% {
+    border-radius: 42% 58% 65% 35% / 45% 40% 60% 55%;
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: fluidBlob 14s ease-in-out infinite;
+}
+
+.animate-blob-slow {
+  animation: fluidBlob 22s ease-in-out infinite reverse;
+}
+
+/* Subtle sleek grid pattern */
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+}
+
