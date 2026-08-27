@@ -101,6 +101,17 @@ export default function App() {
     }
   };
 
+  // Add many items at once (used by "Sync from Drive")
+  const handleBulkAddItems = (newItems: PortfolioItem[]) => {
+    if (newItems.length === 0) return;
+    const customItems = loadStoredCustomItems();
+    const nextCustom = [...newItems, ...customItems];
+    saveStoredCustomItems(nextCustom);
+
+    const updatedCatalog = getAllPortfolioItems();
+    setAllItems(updatedCatalog);
+  };
+
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.indigo : THEMES.indigo;
 
@@ -138,6 +149,7 @@ export default function App() {
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
             onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
+            onBulkAddItems={handleBulkAddItems}
           />
         )}
 
