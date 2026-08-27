@@ -167,14 +167,16 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
         setDriveAuth(getStoredDriveAuth());
       }
 
-      // 2. Upload file
+      // 2. Upload file (into a Drive folder matching the chosen category)
+      const folderNameForUpload = customCategory.trim() ? customCategory.trim() : category;
       const result = await uploadFileToGoogleDrive(
         selectedFile,
         token,
         (progress, msg) => {
           setUploadProgress(progress);
           setStatusMessage(msg);
-        }
+        },
+        folderNameForUpload
       );
 
       setUploadedDriveUrl(result.webViewLink);
