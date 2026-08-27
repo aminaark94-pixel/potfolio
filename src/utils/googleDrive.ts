@@ -158,21 +158,86 @@ function initiateTokenRequest(
 }
 
 /**
+ * Finds an existing Drive folder by name (optionally inside a parent folder).
+ * If it doesn't exist, creates it. Returns the folder's fileId.
+ * Pass a falsy parentId to search/create at the root ("My Drive") level.
+ */
+export async function findOrCreateDriveFolder(
+  folderName: string,
+  token: string,
+  parentId?: string | null
+): Promise<string> {
+  const safeName = folderName.trim();
+  const parentClause = parentId ? ` and '${parentId}' in parents` : " and 'root' in parents";
+  const query = `mimeType='application/vnd.google-apps.folder' and name='${safeName.replace(/'/g, "\\'")}' and trashed=false${parentClause}`;
+
+  const searchRes = await fetch(
+    `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id,name)`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  if (searchRes.ok) {
+    const searchData = await searchRes.json();
+    if (searchData.files && searchData.files.length > 0) {
+      return searchData.files[0].id;
+    }
+  }
+
+  // Not found - create it
+  const createRes = await fetch(DRIVE_FILES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: safeName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: parentId ? [parentId] : undefined,
+    }),
+  });
+
+  if (!createRes.ok) {
+    const errJson = await createRes.json().catch(() => ({}));
+    throw new Error(
+      errJson.error?.message || `Could not create Drive folder "${safeName}"`
+    );
+  }
+
+  const created = await createRes.json();
+  return created.id;
+}
+
+/**
  * Uploads a file directly to Google Drive via multipart upload
  * and makes it accessible for showcase preview.
+ * If folderName is provided, the file is placed inside a Drive folder
+ * with that name (created automatically if it doesn't already exist).
  */
 export async function uploadFileToGoogleDrive(
   file: File,
   token: string,
-  onProgress?: UploadProgressCallback
+  onProgress?: UploadProgressCallback,
+  folderName?: string
 ): Promise<DriveUploadResult> {
   if (onProgress) onProgress(10, 'Preparing file for upload...');
 
-  const metadata = {
+  let folderId: string | undefined;
+  if (folderName && folderName.trim()) {
+    if (onProgress) onProgress(15, `Locating "${folderName}" folder in Drive...`);
+    folderId = await findOrCreateDriveFolder(folderName, token);
+  }
+
+  const metadata: { name: string; mimeType: string; description: string; parents?: string[] } = {
     name: file.name,
     mimeType: file.type || 'application/octet-stream',
     description: 'Uploaded via Studio Portfolio Hub',
   };
+  if (folderId) {
+    metadata.parents = [folderId];
+  }
 
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
