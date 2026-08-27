@@ -31,9 +31,9 @@ import { THEMES } from '../data/themes';
 import { slugify, generateStandaloneHTML } from '../utils/storage';
 import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
 import {
-  requestDriveAccessToken,
   connectGoogleDriveAccount,
   scanDriveForNewItems,
+  clearDriveToken,
   DriveScannedFile,
 } from '../utils/googleDrive';
 import confetti from 'canvas-confetti';
@@ -105,13 +105,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSyncResultMessage(null);
     setSyncStatusMessage('Connecting to Google Drive...');
     try {
-      let token: string;
-      try {
-        token = await requestDriveAccessToken();
-      } catch {
-        const auth = await connectGoogleDriveAccount(true);
-        token = auth.token;
-      }
+      // Force a fresh sign-in for sync so we always have the latest
+      // granted permissions (a previously cached token might only have
+      // the older, more limited permission and would silently miss files).
+      clearDriveToken();
+      const auth = await connectGoogleDriveAccount(true);
+      const token = auth.token;
 
       const existingFileIds = new Set<string>();
       allItems.forEach((item) => {
