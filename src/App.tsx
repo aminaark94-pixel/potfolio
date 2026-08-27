@@ -217,6 +217,7 @@ export default function App() {
         onClose={() => setIsCustomItemModalOpen(false)}
         onAddItem={handleAddCustomItem}
         availableCategories={availableCategories}
+        allItems={allItems}
       />
     </div>
   );
