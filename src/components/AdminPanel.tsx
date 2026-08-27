@@ -131,13 +131,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             id: 'drive-sync-' + f.fileId,
             name: f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
             category: f.category,
+            subcategory: f.subcategory,
             drive_link: f.webViewLink,
             behance_link: null,
             thumb: getDriveThumb(f.webViewLink, 800) || f.thumbnailLink || null,
             thumb_small: getDriveThumb(f.webViewLink, 400) || f.thumbnailLink || null,
             thumb_large: getDriveThumb(f.webViewLink, 1400) || f.thumbnailLink || null,
             mediaType,
-            keywords: [f.category.toLowerCase(), 'drive sync'],
+            keywords: [f.category.toLowerCase(), ...(f.subcategory ? [f.subcategory.toLowerCase()] : []), 'drive sync'],
             custom: true,
           };
         });
