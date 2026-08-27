@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminLogin } from './components/AdminLogin';
 import { ClientShowcaseView } from './components/ClientShowcaseView';
 import { CatalogExplorer } from './components/CatalogExplorer';
 import { LightboxModal } from './components/LightboxModal';
@@ -21,6 +22,22 @@ export default function App() {
   const [activeSlug, setActiveSlug] = useState<string>('new-client-f0c7');
   const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog'>('admin');
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
+
+  // Admin auth: null = checking session with server, true = unlocked, false = locked
+  const [isAdminAuthed, setIsAdminAuthed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin-check')
+      .then((res) => res.json())
+      .then((data) => setIsAdminAuthed(!!data.authenticated))
+      .catch(() => setIsAdminAuthed(false));
+  }, []);
+
+  const handleAdminLogout = () => {
+    fetch('/api/admin-logout', { method: 'POST' }).finally(() => {
+      setIsAdminAuthed(false);
+    });
+  };
   
   // Modals state
   const [selectedLightboxItem, setSelectedLightboxItem] = useState<PortfolioItem | null>(null);
@@ -132,11 +149,23 @@ export default function App() {
         }}
         onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
         onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
+        isAdminAuthed={isAdminAuthed === true}
+        onAdminLogout={handleAdminLogout}
       />
 
       {/* Main View Area */}
       <div className="flex-1">
-        {viewMode === 'admin' && (
+        {viewMode === 'admin' && isAdminAuthed === null && (
+          <div className="min-h-[80vh] flex items-center justify-center text-slate-400 text-sm font-space-grotesk">
+            Checking access...
+          </div>
+        )}
+
+        {viewMode === 'admin' && isAdminAuthed === false && (
+          <AdminLogin onSuccess={() => setIsAdminAuthed(true)} />
+        )}
+
+        {viewMode === 'admin' && isAdminAuthed === true && (
           <AdminPanel
             showcases={showcases}
             activeSlug={activeSlug}

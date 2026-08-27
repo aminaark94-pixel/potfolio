@@ -9,7 +9,8 @@ import {
   Share2, 
   FileCode,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
 import { Showcase } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -23,6 +24,8 @@ interface NavbarProps {
   onOpenCreateShowcase: () => void;
   onOpenDownloadModal: () => void;
   onOpenCustomItemModal: () => void;
+  isAdminAuthed?: boolean;
+  onAdminLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,6 +37,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCreateShowcase,
   onOpenDownloadModal,
   onOpenCustomItemModal,
+  isAdminAuthed,
+  onAdminLogout,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.indigo : THEMES.indigo;
@@ -154,6 +159,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Download className="w-3.5 h-3.5" />
               <span>Get Codes & Setup</span>
             </button>
+
+            {viewMode === 'admin' && isAdminAuthed && onAdminLogout && (
+              <button
+                onClick={onAdminLogout}
+                title="Lock Studio Hub"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-xs font-space-grotesk font-semibold text-slate-500 hover:text-red-600 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
