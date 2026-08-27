@@ -129,7 +129,7 @@ function initiateTokenRequest(
   try {
     const tokenClient = win.google.accounts.oauth2.initTokenClient({
       client_id: '769665241244-ji4ur19rfesg2cgh2oh0oohn1e85ouls.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       callback: async (tokenResponse: any) => {
         if (tokenResponse.error) {
           reject(new Error(tokenResponse.error_description || tokenResponse.error));
@@ -344,4 +344,109 @@ export async function uploadFileToGoogleDrive(
     webContentLink,
     thumbnailLink,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Drive Auto-Sync: scan the user's Drive for portfolio folders/files that
+// were added directly in Drive (not through this app) and are missing here.
+// ---------------------------------------------------------------------------
+
+export interface DriveScannedFile {
+  fileId: string;
+  name: string;
+  mimeType: string;
+  category: string;
+  webViewLink: string;
+  thumbnailLink?: string;
+  createdTime?: string;
+}
+
+const SUPPORTED_MEDIA_PREFIXES = ['image/', 'video/'];
+
+function isSupportedMediaFile(mimeType: string): boolean {
+  if (mimeType === 'application/pdf') return true;
+  return SUPPORTED_MEDIA_PREFIXES.some((p) => mimeType.startsWith(p));
+}
+
+/**
+ * Lists every folder that lives directly at Drive root ("My Drive").
+ * Each of these is treated as a portfolio "category".
+ */
+export async function listRootFolders(
+  token: string
+): Promise<Array<{ id: string; name: string }>> {
+  const query = "mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false";
+  const res = await fetch(
+    `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=200`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson.error?.message || 'Could not list Drive folders. Try reconnecting Google Drive.');
+  }
+  const data = await res.json();
+  return data.files || [];
+}
+
+/**
+ * Lists supported media files (images, videos, PDFs) directly inside a folder.
+ */
+export async function listFilesInFolder(
+  token: string,
+  folderId: string
+): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }>> {
+  const query = `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
+  const res = await fetch(
+    `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,createdTime)&pageSize=1000`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson.error?.message || 'Could not list files in Drive folder.');
+  }
+  const data = await res.json();
+  return data.files || [];
+}
+
+/**
+ * Scans every root-level folder in the user's Drive (each folder = a category)
+ * and returns any supported media files whose Drive file ID is not already
+ * present in `existingFileIds`. This powers "Sync from Drive" auto-detection
+ * of files the user added directly in Drive, outside the app.
+ */
+export async function scanDriveForNewItems(
+  token: string,
+  existingFileIds: Set<string>,
+  onProgress?: (message: string) => void
+): Promise<DriveScannedFile[]> {
+  const folders = await listRootFolders(token);
+  const results: DriveScannedFile[] = [];
+
+  for (const folder of folders) {
+    if (onProgress) onProgress(`Scanning "${folder.name}" folder...`);
+    let files: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }> = [];
+    try {
+      files = await listFilesInFolder(token, folder.id);
+    } catch (e) {
+      console.warn(`Could not scan folder "${folder.name}"`, e);
+      continue;
+    }
+
+    for (const f of files) {
+      if (existingFileIds.has(f.id)) continue;
+      if (!isSupportedMediaFile(f.mimeType)) continue;
+
+      results.push({
+        fileId: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        category: folder.name,
+        webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view?usp=drivesdk`,
+        thumbnailLink: f.thumbnailLink,
+        createdTime: f.createdTime,
+      });
+    }
+  }
+
+  return results;
 }
