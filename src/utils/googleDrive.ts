@@ -128,7 +128,7 @@ function initiateTokenRequest(
   const win = window as any;
   try {
     const tokenClient = win.google.accounts.oauth2.initTokenClient({
-      client_id: '131042029675-oauth-client.apps.googleusercontent.com',
+      client_id: '769665241244-ji4ur19rfesg2cgh2oh0oohn1e85ouls.apps.googleusercontent.com',
       scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       callback: async (tokenResponse: any) => {
         if (tokenResponse.error) {
