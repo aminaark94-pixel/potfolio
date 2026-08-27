@@ -36,6 +36,7 @@ interface AddCustomItemModalProps {
   onClose: () => void;
   onAddItem: (item: PortfolioItem) => void;
   availableCategories: string[];
+  allItems: PortfolioItem[];
 }
 
 export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
@@ -43,6 +44,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
   onClose,
   onAddItem,
   availableCategories,
+  allItems,
 }) => {
   // Mode: 'drive_upload' | 'drive_link'
   const [activeTab, setActiveTab] = useState<'drive_upload' | 'drive_link'>('drive_upload');
@@ -55,9 +57,21 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
   const [name, setName] = useState('');
   const [category, setCategory] = useState(availableCategories[0] || 'Brand Identity');
   const [customCategory, setCustomCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
+  const [customSubcategory, setCustomSubcategory] = useState('');
   const [driveLink, setDriveLink] = useState('');
   const [behanceLink, setBehanceLink] = useState('');
   const [keywordsStr, setKeywordsStr] = useState('');
+
+  // Existing subcategories for the currently selected category (for reuse)
+  const activeCategoryForLookup = customCategory.trim() ? customCategory.trim() : category;
+  const availableSubcategories = Array.from(
+    new Set(
+      allItems
+        .filter((i) => i.category === activeCategoryForLookup && i.subcategory)
+        .map((i) => i.subcategory as string)
+    )
+  ).sort();
 
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -167,8 +181,9 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
         setDriveAuth(getStoredDriveAuth());
       }
 
-      // 2. Upload file (into a Drive folder matching the chosen category)
+      // 2. Upload file (into a Drive folder/subfolder matching category/subcategory)
       const folderNameForUpload = customCategory.trim() ? customCategory.trim() : category;
+      const subFolderNameForUpload = customSubcategory.trim() ? customSubcategory.trim() : subcategory.trim();
       const result = await uploadFileToGoogleDrive(
         selectedFile,
         token,
@@ -176,7 +191,8 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
           setUploadProgress(progress);
           setStatusMessage(msg);
         },
-        folderNameForUpload
+        folderNameForUpload,
+        subFolderNameForUpload || undefined
       );
 
       setUploadedDriveUrl(result.webViewLink);
@@ -184,6 +200,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
 
       // 3. Assemble Portfolio Item
       const finalCategory = customCategory.trim() ? customCategory.trim() : category;
+      const finalSubcategory = subFolderNameForUpload || undefined;
       const mediaType = detectMediaType(selectedFile.name, result.webViewLink);
       const keywords = keywordsStr
         .split(',')
@@ -194,6 +211,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
         id: 'drive-' + Date.now(),
         name: name.trim(),
         category: finalCategory,
+        subcategory: finalSubcategory,
         drive_link: result.webViewLink,
         behance_link: behanceLink.trim() || null,
         thumb: getDriveThumb(result.webViewLink, 800) || previewUrl,
@@ -228,6 +246,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
     }
 
     const finalCategory = customCategory.trim() ? customCategory.trim() : category;
+    const finalSubcategory = (customSubcategory.trim() ? customSubcategory.trim() : subcategory.trim()) || undefined;
     const mediaType = detectMediaType(name, driveLink);
     const keywords = keywordsStr
       .split(',')
@@ -238,6 +257,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
       id: 'custom-' + Date.now(),
       name: name.trim(),
       category: finalCategory,
+      subcategory: finalSubcategory,
       drive_link: driveLink.trim(),
       behance_link: behanceLink.trim() || null,
       thumb: getDriveThumb(driveLink.trim(), 800),
@@ -259,6 +279,8 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
     setBehanceLink('');
     setKeywordsStr('');
     setCustomCategory('');
+    setSubcategory('');
+    setCustomSubcategory('');
     setSelectedFile(null);
     setPreviewUrl(null);
     setUploadStatus('idle');
@@ -591,6 +613,35 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                     placeholder="Or type new category..."
+                    className="bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all font-space-grotesk text-xs shadow-inner"
+                  />
+                </div>
+              </div>
+
+              {/* Subcategory (optional nested folder inside the category, e.g. Logos > Restaurant Logos) */}
+              <div>
+                <label className="block text-slate-900 font-space-grotesk font-bold mb-1.5">
+                  Subcategory <span className="font-normal text-slate-400 normal-case">(optional — creates a subfolder inside the category)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select
+                    value={subcategory}
+                    onChange={(e) => setSubcategory(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all font-space-grotesk text-xs"
+                  >
+                    <option value="">No subcategory</option>
+                    {availableSubcategories.map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    value={customSubcategory}
+                    onChange={(e) => setCustomSubcategory(e.target.value)}
+                    placeholder="Or type new subcategory..."
                     className="bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all font-space-grotesk text-xs shadow-inner"
                   />
                 </div>
