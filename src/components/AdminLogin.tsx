@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { Lock, ShieldCheck, Loader2, Mail } from 'lucide-react';
 
 interface AdminLoginProps {
   onSuccess: () => void;
@@ -9,6 +9,33 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+
+  const handleForgotPassword = async () => {
+    if (isSendingReset) return;
+    setIsSendingReset(true);
+    setResetMessage(null);
+
+    try {
+      const res = await fetch('/api/admin-forgot-password', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.email?.ok && data.whatsapp?.ok) {
+        setResetMessage('Password sent to your email and WhatsApp.');
+      } else if (data.email?.ok) {
+        setResetMessage('Password sent to your email (WhatsApp failed).');
+      } else if (data.whatsapp?.ok) {
+        setResetMessage('Password sent to your WhatsApp (Email failed).');
+      } else {
+        setResetMessage('Could not send password. Check server configuration.');
+      }
+    } catch {
+      setResetMessage('Could not reach the server. Please try again.');
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +109,24 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
               <span>{isSubmitting ? 'Verifying...' : 'Unlock Studio Hub'}</span>
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={isSendingReset}
+            className="w-full mt-4 inline-flex items-center justify-center gap-1.5 text-xs font-space-grotesk font-semibold text-slate-400 hover:text-indigo-600 transition-colors disabled:opacity-60 cursor-pointer"
+          >
+            {isSendingReset ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Mail className="w-3.5 h-3.5" />
+            )}
+            <span>{isSendingReset ? 'Sending...' : 'Forgot password?'}</span>
+          </button>
+
+          {resetMessage && (
+            <p className="text-center text-xs text-slate-500 mt-2">{resetMessage}</p>
+          )}
         </div>
       </div>
     </div>
