@@ -29,7 +29,23 @@ import {
 import { Showcase, PortfolioItem, ThemeId, HeroStyle } from '../types/portfolio';
 import { THEMES } from '../data/themes';
 import { slugify, generateStandaloneHTML } from '../utils/storage';
+import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
+import {
+  requestDriveAccessToken,
+  connectGoogleDriveAccount,
+  scanDriveForNewItems,
+  DriveScannedFile,
+} from '../utils/googleDrive';
 import confetti from 'canvas-confetti';
+
+function extractDriveFileId(driveLink: string | null | undefined): string | null {
+  if (!driveLink) return null;
+  const m1 = driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1 && m1[1]) return m1[1];
+  const m2 = driveLink.match(/id=([a-zA-Z0-9_-]+)/);
+  if (m2 && m2[1]) return m2[1];
+  return null;
+}
 
 interface AdminPanelProps {
   showcases: Record<string, Showcase>;
@@ -43,6 +59,7 @@ interface AdminPanelProps {
   onOpenLightbox: (item: PortfolioItem) => void;
   onOpenCustomItemModal: () => void;
   onOpenDownloadModal: () => void;
+  onBulkAddItems: (items: PortfolioItem[]) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -57,6 +74,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenLightbox,
   onOpenCustomItemModal,
   onOpenDownloadModal,
+  onBulkAddItems,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -76,6 +94,66 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [pageSize, setPageSize] = useState(24);
   const [exportedHtml, setExportedHtml] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Drive Sync State
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [syncStatusMessage, setSyncStatusMessage] = useState<string>('');
+  const [syncResultMessage, setSyncResultMessage] = useState<string | null>(null);
+
+  const handleSyncFromDrive = async () => {
+    setIsSyncingDrive(true);
+    setSyncResultMessage(null);
+    setSyncStatusMessage('Connecting to Google Drive...');
+    try {
+      let token: string;
+      try {
+        token = await requestDriveAccessToken();
+      } catch {
+        const auth = await connectGoogleDriveAccount(true);
+        token = auth.token;
+      }
+
+      const existingFileIds = new Set<string>();
+      allItems.forEach((item) => {
+        const fid = extractDriveFileId(item.drive_link);
+        if (fid) existingFileIds.add(fid);
+      });
+
+      const found: DriveScannedFile[] = await scanDriveForNewItems(token, existingFileIds, (msg) =>
+        setSyncStatusMessage(msg)
+      );
+
+      if (found.length === 0) {
+        setSyncResultMessage('Drive is already fully synced — no new files found.');
+      } else {
+        const newItems: PortfolioItem[] = found.map((f) => {
+          const mediaType = detectMediaType(f.name, f.webViewLink);
+          return {
+            id: 'drive-sync-' + f.fileId,
+            name: f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+            category: f.category,
+            drive_link: f.webViewLink,
+            behance_link: null,
+            thumb: getDriveThumb(f.webViewLink, 800) || f.thumbnailLink || null,
+            thumb_small: getDriveThumb(f.webViewLink, 400) || f.thumbnailLink || null,
+            thumb_large: getDriveThumb(f.webViewLink, 1400) || f.thumbnailLink || null,
+            mediaType,
+            keywords: [f.category.toLowerCase(), 'drive sync'],
+            custom: true,
+          };
+        });
+        onBulkAddItems(newItems);
+        setSyncResultMessage(`Added ${newItems.length} new item${newItems.length === 1 ? '' : 's'} found in Drive.`);
+      }
+    } catch (err: any) {
+      console.error('Drive sync error', err);
+      setSyncResultMessage(err.message || 'Could not sync with Google Drive. Please try reconnecting.');
+    } finally {
+      setIsSyncingDrive(false);
+      setSyncStatusMessage('');
+      setTimeout(() => setSyncResultMessage(null), 6000);
+    }
+  };
 
   // Categories list with counts
   const categoryCounts = useMemo(() => {
@@ -245,8 +323,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <Plus className="w-4 h-4 text-emerald-300" />
             <span>Upload / Add Portfolio Design</span>
           </button>
+
+          <button
+            onClick={handleSyncFromDrive}
+            disabled={isSyncingDrive}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/40 hover:bg-indigo-500/60 border border-white/20 text-white font-space-grotesk text-xs font-semibold transition-all hover:scale-105 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-300 ${isSyncingDrive ? 'animate-spin' : ''}`} />
+            <span>{isSyncingDrive ? (syncStatusMessage || 'Syncing...') : 'Sync from Drive'}</span>
+          </button>
         </div>
       </div>
+
+      {syncResultMessage && (
+        <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-space-grotesk">
+          {syncResultMessage}
+        </div>
+      )}
 
       {/* CREATE NEW SHOWCASE ACCORDION/FORM */}
       <AnimatePresence>
