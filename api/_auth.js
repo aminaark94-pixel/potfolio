@@ -1,6 +1,6 @@
 // Shared helper for signing/verifying admin session tokens.
 // Runs only on the Vercel server (Node serverless runtime) — never shipped to the browser.
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 function getSecret() {
   const secret = process.env.ADMIN_SECRET;
@@ -16,14 +16,14 @@ function base64url(input) {
   return Buffer.from(input).toString('base64url');
 }
 
-function sign(payload) {
+export function sign(payload) {
   const secret = getSecret();
   const data = base64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', secret).update(data).digest('base64url');
   return `${data}.${sig}`;
 }
 
-function verify(token) {
+export function verify(token) {
   if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const [data, sig] = token.split('.');
   if (!data || !sig) return null;
@@ -51,7 +51,7 @@ function verify(token) {
   }
 }
 
-function parseCookies(req) {
+export function parseCookies(req) {
   const header = req.headers.cookie || '';
   return header.split(';').reduce((acc, part) => {
     const idx = part.indexOf('=');
@@ -63,7 +63,5 @@ function parseCookies(req) {
   }, {});
 }
 
-const COOKIE_NAME = 'studio_admin_session';
-const SESSION_HOURS = 12;
-
-module.exports = { sign, verify, parseCookies, COOKIE_NAME, SESSION_HOURS };
+export const COOKIE_NAME = 'studio_admin_session';
+export const SESSION_HOURS = 12;

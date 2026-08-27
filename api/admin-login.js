@@ -1,6 +1,6 @@
-const { sign, COOKIE_NAME, SESSION_HOURS } = require('./_auth');
+import { sign, COOKIE_NAME, SESSION_HOURS } from './_auth.js';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method not allowed' });
     return;
@@ -27,7 +27,6 @@ module.exports = async function handler(req, res) {
   }
 
   if (typeof password !== 'string' || password.length === 0 || password !== expected) {
-    // Small deliberate delay to slow down brute-force guessing.
     await new Promise((resolve) => setTimeout(resolve, 400));
     res.status(401).json({ ok: false, error: 'Incorrect password' });
     return;
@@ -41,4 +40,4 @@ module.exports = async function handler(req, res) {
     `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_HOURS * 3600}`
   );
   res.status(200).json({ ok: true });
-};
+}
