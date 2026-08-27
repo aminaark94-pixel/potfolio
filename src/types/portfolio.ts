@@ -4,6 +4,7 @@ export interface PortfolioItem {
   id: string;
   name: string;
   category: string;
+  subcategory?: string;
   drive_link: string | null;
   behance_link: string | null;
   thumb: string | null;
