@@ -220,7 +220,8 @@ export async function uploadFileToGoogleDrive(
   file: File,
   token: string,
   onProgress?: UploadProgressCallback,
-  folderName?: string
+  folderName?: string,
+  subFolderName?: string
 ): Promise<DriveUploadResult> {
   if (onProgress) onProgress(10, 'Preparing file for upload...');
 
@@ -228,6 +229,11 @@ export async function uploadFileToGoogleDrive(
   if (folderName && folderName.trim()) {
     if (onProgress) onProgress(15, `Locating "${folderName}" folder in Drive...`);
     folderId = await findOrCreateDriveFolder(folderName, token);
+
+    if (subFolderName && subFolderName.trim()) {
+      if (onProgress) onProgress(18, `Locating "${folderName}/${subFolderName}" subfolder in Drive...`);
+      folderId = await findOrCreateDriveFolder(subFolderName, token, folderId);
+    }
   }
 
   const metadata: { name: string; mimeType: string; description: string; parents?: string[] } = {
@@ -356,6 +362,7 @@ export interface DriveScannedFile {
   name: string;
   mimeType: string;
   category: string;
+  subcategory?: string;
   webViewLink: string;
   thumbnailLink?: string;
   createdTime?: string;
@@ -389,6 +396,27 @@ export async function listRootFolders(
 }
 
 /**
+ * Lists folders that live directly inside a given parent folder (one level).
+ * Used to detect "subcategory" subfolders inside a category folder.
+ */
+export async function listSubfolders(
+  token: string,
+  parentFolderId: string
+): Promise<Array<{ id: string; name: string }>> {
+  const query = `mimeType='application/vnd.google-apps.folder' and '${parentFolderId}' in parents and trashed=false`;
+  const res = await fetch(
+    `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=200`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson.error?.message || 'Could not list Drive subfolders.');
+  }
+  const data = await res.json();
+  return data.files || [];
+}
+
+/**
  * Lists supported media files (images, videos, PDFs) directly inside a folder.
  */
 export async function listFilesInFolder(
@@ -409,10 +437,11 @@ export async function listFilesInFolder(
 }
 
 /**
- * Scans every root-level folder in the user's Drive (each folder = a category)
- * and returns any supported media files whose Drive file ID is not already
- * present in `existingFileIds`. This powers "Sync from Drive" auto-detection
- * of files the user added directly in Drive, outside the app.
+ * Scans every root-level folder in the user's Drive (each folder = a category),
+ * plus one level of subfolders inside each (= subcategories), and returns any
+ * supported media files whose Drive file ID is not already present in
+ * `existingFileIds`. This powers "Sync from Drive" auto-detection of files
+ * the user added directly in Drive, outside the app.
  */
 export async function scanDriveForNewItems(
   token: string,
@@ -424,12 +453,14 @@ export async function scanDriveForNewItems(
 
   for (const folder of folders) {
     if (onProgress) onProgress(`Scanning "${folder.name}" folder...`);
+
+    // 1. Files directly inside the category folder
     let files: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }> = [];
     try {
       files = await listFilesInFolder(token, folder.id);
     } catch (e) {
       console.warn(`Could not scan folder "${folder.name}"`, e);
-      continue;
+      files = [];
     }
 
     for (const f of files) {
@@ -445,6 +476,42 @@ export async function scanDriveForNewItems(
         thumbnailLink: f.thumbnailLink,
         createdTime: f.createdTime,
       });
+    }
+
+    // 2. Files inside subfolders (one level deep = subcategories)
+    let subfolders: Array<{ id: string; name: string }> = [];
+    try {
+      subfolders = await listSubfolders(token, folder.id);
+    } catch (e) {
+      console.warn(`Could not list subfolders of "${folder.name}"`, e);
+      subfolders = [];
+    }
+
+    for (const sub of subfolders) {
+      if (onProgress) onProgress(`Scanning "${folder.name}/${sub.name}" subfolder...`);
+      let subFiles: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }> = [];
+      try {
+        subFiles = await listFilesInFolder(token, sub.id);
+      } catch (e) {
+        console.warn(`Could not scan subfolder "${folder.name}/${sub.name}"`, e);
+        continue;
+      }
+
+      for (const f of subFiles) {
+        if (existingFileIds.has(f.id)) continue;
+        if (!isSupportedMediaFile(f.mimeType)) continue;
+
+        results.push({
+          fileId: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          category: folder.name,
+          subcategory: sub.name,
+          webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view?usp=drivesdk`,
+          thumbnailLink: f.thumbnailLink,
+          createdTime: f.createdTime,
+        });
+      }
     }
   }
 
