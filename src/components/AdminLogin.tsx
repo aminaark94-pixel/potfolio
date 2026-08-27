@@ -21,12 +21,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
       const res = await fetch('/api/admin-forgot-password', { method: 'POST' });
       const data = await res.json();
 
-      if (data.email?.ok && data.whatsapp?.ok) {
-        setResetMessage('Password sent to your email and WhatsApp.');
-      } else if (data.email?.ok) {
-        setResetMessage('Password sent to your email (WhatsApp failed).');
-      } else if (data.whatsapp?.ok) {
-        setResetMessage('Password sent to your WhatsApp (Email failed).');
+      const sentVia: string[] = [];
+      if (data.email?.ok) sentVia.push('Email');
+      if (data.whatsapp?.ok) sentVia.push('WhatsApp');
+      if (data.sms?.ok) sentVia.push('SMS');
+
+      if (sentVia.length > 0) {
+        setResetMessage(`Password sent via ${sentVia.join(' & ')}.`);
       } else {
         setResetMessage('Could not send password. Check server configuration.');
       }

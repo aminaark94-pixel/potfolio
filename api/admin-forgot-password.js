@@ -45,6 +45,23 @@ async function sendWhatsApp(password) {
   return { ok: true };
 }
 
+async function sendSMS(password) {
+  const res = await fetch('https://textbelt.com/text', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone: `+${RECOVERY_WHATSAPP_PHONE}`,
+      message: `Your Studio Hub admin password is: ${password}`,
+      key: process.env.TEXTBELT_KEY || 'textbelt', // 'textbelt' = free shared key, 1 SMS/day
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) {
+    return { ok: false, error: data.error || 'Textbelt SMS failed (free quota may be used up for today)' };
+  }
+  return { ok: true };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method not allowed' });
@@ -57,16 +74,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  const [emailResult, whatsappResult] = await Promise.all([
+  const [emailResult, whatsappResult, smsResult] = await Promise.all([
     sendEmail(password),
     sendWhatsApp(password),
+    sendSMS(password),
   ]);
 
-  const anySent = emailResult.ok || whatsappResult.ok;
+  const anySent = emailResult.ok || whatsappResult.ok || smsResult.ok;
 
   res.status(anySent ? 200 : 500).json({
     ok: anySent,
     email: emailResult,
     whatsapp: whatsappResult,
+    sms: smsResult,
   });
 }
