@@ -29,7 +29,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
       if (sentVia.length > 0) {
         setResetMessage(`Password sent via ${sentVia.join(' & ')}.`);
       } else {
-        setResetMessage('Could not send password. Check server configuration.');
+        const errs = [
+          data.email?.error && `Email: ${data.email.error}`,
+          data.whatsapp?.error && `WhatsApp: ${data.whatsapp.error}`,
+          data.sms?.error && `SMS: ${data.sms.error}`,
+        ].filter(Boolean);
+        setResetMessage(errs.length ? errs.join(' | ') : 'Could not send password.');
       }
     } catch {
       setResetMessage('Could not reach the server. Please try again.');
@@ -126,7 +131,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
           </button>
 
           {resetMessage && (
-            <p className="text-center text-xs text-slate-500 mt-2">{resetMessage}</p>
+            <p className="text-center text-[11px] text-slate-500 mt-2 leading-relaxed break-words">{resetMessage}</p>
           )}
         </div>
       </div>
