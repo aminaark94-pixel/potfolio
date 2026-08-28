@@ -221,17 +221,11 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
 
   return (
     <div className="aurora-canvas min-h-screen glass-text-primary selection:bg-white/20 selection:text-white transition-colors duration-500">
-      {/* Ambient aurora blobs — derived from this client's theme, drifting slowly behind the glass */}
+      {/* Ambient monochrome glow — matches Aala Studio's minimal dark palette */}
+      <div className="aurora-blob w-[520px] h-[520px] -top-40 -left-32 opacity-[0.07] animate-blob-slow bg-white" />
+      <div className="aurora-blob w-[440px] h-[440px] top-32 -right-24 opacity-[0.05] animate-blob bg-white" />
       <div
-        className="aurora-blob w-[500px] h-[500px] -top-40 -left-32 opacity-45 animate-blob-slow"
-        style={{ background: `radial-gradient(circle, ${theme.gradientFrom}, transparent 70%)` }}
-      />
-      <div
-        className="aurora-blob w-[440px] h-[440px] top-32 -right-24 opacity-35 animate-blob"
-        style={{ background: `radial-gradient(circle, ${theme.gradientTo}, transparent 70%)` }}
-      />
-      <div
-        className="aurora-blob w-[360px] h-[360px] bottom-0 left-1/4 opacity-25 animate-blob-slow"
+        className="aurora-blob w-[360px] h-[360px] bottom-0 left-1/4 opacity-[0.12] animate-blob-slow"
         style={{ background: `radial-gradient(circle, ${theme.accentSoft}, transparent 70%)` }}
       />
 
@@ -255,15 +249,18 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               </button>
             )}
             {showcase.logo_url ? (
-              <img src={showcase.logo_url} alt="Logo" className="h-8 w-auto rounded-lg object-contain shadow-sm" />
+              <img
+                src={showcase.logo_url}
+                alt="Logo"
+                className="h-9 w-auto rounded-lg object-contain bg-white p-1"
+              />
             ) : (
-              <img src={AALA_LOGO_URL} alt="Aala Studio" className="h-8 w-auto object-contain" />
+              <img
+                src={AALA_LOGO_URL}
+                alt="Aala Studio"
+                className="h-9 w-auto rounded-lg object-contain bg-white p-1.5"
+              />
             )}
-            <div className="min-w-0">
-              <span className="font-space-grotesk font-bold text-base glass-text-primary tracking-tight truncate block">
-                {showcase.brand_name || 'Studio'}
-              </span>
-            </div>
           </div>
 
           {/* Client Target & Action Suite */}

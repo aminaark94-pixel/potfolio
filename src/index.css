@@ -120,7 +120,7 @@
 /* ---------------------------------------------------------------------- */
 
 .aurora-canvas {
-  background: radial-gradient(ellipse 120% 80% at 50% -10%, #171B26 0%, #0A0C10 55%, #060709 100%);
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #1E1E1E 0%, #111111 55%, #000000 100%);
   position: relative;
   isolation: isolate;
 }
@@ -167,15 +167,15 @@
 }
 
 .glass-text-primary {
-  color: #F5F6FA;
+  color: #FFFFFF;
 }
 
 .glass-text-secondary {
-  color: rgba(245, 246, 250, 0.68);
+  color: #A1A1A1;
 }
 
 .glass-text-muted {
-  color: rgba(245, 246, 250, 0.42);
+  color: #888888;
 }
 
 /* One-time diagonal shine sweep across the hero glass slab on load */
