@@ -21,6 +21,9 @@ import { Showcase, PortfolioItem, ThemeConfig, ClientFeedback } from '../types/p
 import { THEMES } from '../data/themes';
 import { generateStandaloneHTML } from '../utils/storage';
 import confetti from 'canvas-confetti';
+import founderPhoto from '../assets/founder-photo.png';
+
+const AALA_LOGO_URL = 'https://aalastudio.com/wp-content/uploads/2025/03/Group-1.png';
 
 interface ClientShowcaseViewProps {
   showcase: Showcase;
@@ -254,15 +257,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             {showcase.logo_url ? (
               <img src={showcase.logo_url} alt="Logo" className="h-8 w-auto rounded-lg object-contain shadow-sm" />
             ) : (
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0 glass-hairline"
-                style={{
-                  background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
-                  boxShadow: `0 4px 14px ${theme.accentGlow}`,
-                }}
-              >
-                ◆
-              </div>
+              <img src={AALA_LOGO_URL} alt="Aala Studio" className="h-8 w-auto object-contain" />
             )}
             <div className="min-w-0">
               <span className="font-space-grotesk font-bold text-base glass-text-primary tracking-tight truncate block">
@@ -299,31 +294,6 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             >
               <Share2 className="w-4 h-4" />
             </button>
-
-            {/* 1-Click HTML Standalone Export */}
-            <button
-              onClick={handleExportHtml}
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-chip text-xs font-space-grotesk font-semibold glass-text-secondary hover:glass-text-primary hover:bg-white/10 transition-all cursor-pointer"
-              title="Export single standalone .html file to email/WhatsApp to client"
-            >
-              <Download className="w-3.5 h-3.5" style={{ color: theme.accentSoft }} />
-              <span>{exportedHtml ? 'Saved .HTML!' : 'Export HTML'}</span>
-            </button>
-
-            {/* Primary CTA */}
-            {showcase.ctaText && (
-              <a
-                href={showcase.ctaLink || '#'}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-space-grotesk font-bold text-xs sm:text-sm text-white transition-all hover:opacity-95 active:scale-95 shrink-0 cursor-pointer glass-hairline"
-                style={{
-                  background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
-                  boxShadow: `0 4px 20px ${theme.accentGlow}`,
-                }}
-              >
-                <span>{showcase.ctaText}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            )}
           </div>
         </div>
       </header>
@@ -351,17 +321,32 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               transition={{ duration: 0.6, delay: 0.1 }}
               className="font-roboto text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight glass-text-primary leading-[1.15]"
             >
-              {showcase.heading.split(' ')[0]}{' '}
-              <span
-                style={{
-                  background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.accentSoft})`,
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                }}
-              >
-                {showcase.heading.split(' ').slice(1).join(' ') || 'Showcase'}
-              </span>
+              {showcase.heading && showcase.heading.trim() ? (
+                <>
+                  Personalized Portfolio for{' '}
+                  <span
+                    style={{
+                      background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.accentSoft})`,
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    {showcase.heading}
+                  </span>
+                </>
+              ) : (
+                <span
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.accentSoft})`,
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  Custom Portfolio
+                </span>
+              )}
             </motion.h1>
 
             <motion.p
@@ -372,31 +357,6 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             >
               {showcase.tagline}
             </motion.p>
-
-            {/* Client Personal Note Card */}
-            {showcase.clientNote && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="p-5 sm:p-6 rounded-2xl glass-chip flex items-start gap-4 mt-6"
-              >
-                <div
-                  className="p-2.5 rounded-2xl glass-hairline shrink-0 mt-0.5"
-                  style={{ background: `${theme.accent}33`, color: theme.accentSoft }}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-space-mono uppercase font-bold tracking-wider glass-text-muted block">
-                    Message from Studio Director
-                  </span>
-                  <p className="text-xs sm:text-sm glass-text-secondary leading-relaxed font-inter">
-                    {showcase.clientNote}
-                  </p>
-                </div>
-              </motion.div>
-            )}
           </div>
         </div>
       </section>
@@ -504,19 +464,26 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 glass-hairline border-l-0 border-r-0 border-b-0 py-12 px-4 text-center space-y-3">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-space-mono glass-text-muted">
-          <div>
-            © {new Date().getFullYear()} {showcase.brand_name || 'Studio'} — Private Client Presentation.
+      <footer className="relative z-10 glass-hairline border-l-0 border-r-0 border-b-0 py-10 px-4 text-center space-y-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <img
+              src={founderPhoto}
+              alt="Aala Studio"
+              className="w-10 h-10 rounded-full object-cover glass-hairline"
+            />
+            <div className="text-left">
+              <span className="font-space-grotesk font-semibold text-xs glass-text-primary block">
+                Aala Studio
+              </span>
+              <span className="text-[11px] font-space-mono glass-text-muted">
+                Prepared exclusively for you
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleExportHtml}
-              className="hover:glass-text-primary transition-colors cursor-pointer"
-            >
-              Export Standalone HTML
-            </button>
+          <div className="flex items-center gap-4 text-xs font-space-mono glass-text-muted">
+            <span>© {new Date().getFullYear()} {showcase.brand_name || 'Aala Studio'}</span>
             <span>•</span>
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

@@ -556,16 +556,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div>
               <label className="block font-space-grotesk font-semibold text-slate-700 mb-1">
-                Client Heading
+                Client Name
               </label>
               <input
                 type="text"
+                placeholder="Leave blank for a generic link"
                 value={currentShowcase.heading}
                 onChange={(e) =>
                   onUpdateShowcase({ ...currentShowcase, heading: e.target.value })
                 }
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
+              <p className="text-[11px] text-slate-400 mt-1 font-space-mono">
+                Client view shows "Personalized Portfolio for {'{Client Name}'}" — or "Custom Portfolio" if left blank.
+              </p>
             </div>
 
             <div>
