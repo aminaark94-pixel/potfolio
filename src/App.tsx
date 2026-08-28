@@ -137,21 +137,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-600 selection:text-white">
-      {/* Top Studio Navbar */}
-      <Navbar
-        viewMode={viewMode}
-        onSelectViewMode={setViewMode}
-        showcases={showcases}
-        activeSlug={activeSlug}
-        onSelectShowcase={setActiveSlug}
-        onOpenCreateShowcase={() => {
-          setViewMode('admin');
-        }}
-        onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
-        onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
-        isAdminAuthed={isAdminAuthed === true}
-        onAdminLogout={handleAdminLogout}
-      />
+      {/* Top Studio Navbar — admin/internal only, never shown on the client-facing showcase */}
+      {viewMode !== 'client' && (
+        <Navbar
+          viewMode={viewMode}
+          onSelectViewMode={setViewMode}
+          showcases={showcases}
+          activeSlug={activeSlug}
+          onSelectShowcase={setActiveSlug}
+          onOpenCreateShowcase={() => {
+            setViewMode('admin');
+          }}
+          onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
+          onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
+          isAdminAuthed={isAdminAuthed === true}
+          onAdminLogout={handleAdminLogout}
+        />
+      )}
 
       {/* Main View Area */}
       <div className="flex-1">
@@ -189,6 +191,8 @@ export default function App() {
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onUpdateShowcase={handleUpdateShowcase}
             onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
+            isAdminPreview={isAdminAuthed === true}
+            onExitToAdmin={() => setViewMode('admin')}
           />
         )}
 

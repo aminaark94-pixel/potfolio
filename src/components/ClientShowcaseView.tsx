@@ -14,6 +14,7 @@ import {
   Layers,
   ChevronRight,
   Filter,
+  Maximize2,
   X
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeConfig, ClientFeedback } from '../types/portfolio';
@@ -27,6 +28,8 @@ interface ClientShowcaseViewProps {
   onOpenLightbox: (item: PortfolioItem) => void;
   onUpdateShowcase?: (updated: Showcase) => void;
   onOpenDownloadModal?: () => void;
+  isAdminPreview?: boolean;
+  onExitToAdmin?: () => void;
 }
 
 export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
@@ -34,6 +37,8 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
   allItems,
   onOpenLightbox,
   onUpdateShowcase,
+  isAdminPreview,
+  onExitToAdmin,
 }) => {
   const theme: ThemeConfig = THEMES[showcase.theme] || THEMES.rust;
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -236,6 +241,16 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Studio Brand */}
           <div className="flex items-center gap-3 min-w-0">
+            {isAdminPreview && onExitToAdmin && (
+              <button
+                onClick={onExitToAdmin}
+                title="Back to Studio Hub"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass-chip glass-text-secondary hover:glass-text-primary hover:bg-white/10 transition-all cursor-pointer text-[11px] font-space-mono shrink-0"
+              >
+                <ChevronRight className="w-3 h-3 rotate-180" />
+                <span>Studio Hub</span>
+              </button>
+            )}
             {showcase.logo_url ? (
               <img src={showcase.logo_url} alt="Logo" className="h-8 w-auto rounded-lg object-contain shadow-sm" />
             ) : (
@@ -334,9 +349,9 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-syne text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight glass-text-primary leading-[1.04]"
+              className="font-roboto text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight glass-text-primary leading-[1.15]"
             >
-              {showcase.heading.split(' ')[0]} <br />
+              {showcase.heading.split(' ')[0]}{' '}
               <span
                 style={{
                   background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.accentSoft})`,
@@ -602,66 +617,49 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: Math.min(index * 0.05, 0.3) }}
       onClick={onOpen}
-      className="break-inside-avoid group relative rounded-3xl overflow-hidden glass-surface cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.09]"
+      className="break-inside-avoid group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300"
     >
-      {/* Image Wrap */}
-      <div className="relative bg-black/20 overflow-hidden aspect-auto min-h-[160px]">
+      {/* Image Wrap — pure image tile, no text, reference-gallery style */}
+      <div className="relative bg-black/20 overflow-hidden rounded-2xl">
         <img
           src={item.thumb || item.thumb_large || ''}
           alt={item.name}
           loading="lazy"
           onLoad={() => setImageLoaded(true)}
-          className={`w-full h-auto object-cover transition-all duration-500 group-hover:scale-105 ${
+          className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover:scale-[1.04] ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
 
-        {/* Video / Media badge */}
+        {/* Video badge */}
         {item.mediaType === 'video' && (
-          <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md glass-chip text-[10px] font-space-mono text-cyan-300 uppercase">
+          <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md glass-chip text-[10px] font-space-mono text-cyan-300 uppercase z-10">
             Video
           </span>
         )}
+
+        {/* Subtle professional hover tint */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Centered expand icon on hover */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
+          <div className="w-11 h-11 rounded-full glass-chip flex items-center justify-center text-white shadow-lg">
+            <Maximize2 className="w-4 h-4" />
+          </div>
+        </div>
 
         {/* Heart Like Floating Button */}
         <button
           onClick={onToggleLike}
           className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md border transition-all z-10 cursor-pointer ${
             isLiked
-              ? 'bg-rose-500 text-white border-rose-400 scale-110 shadow-lg'
+              ? 'bg-rose-500 text-white border-rose-400 scale-110 shadow-lg opacity-100'
               : 'bg-black/30 text-white/80 hover:text-rose-400 hover:bg-black/50 border-white/15 opacity-0 group-hover:opacity-100'
           }`}
           title={isLiked ? 'Liked' : 'Like design'}
         >
           <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
         </button>
-
-        {/* Hover Information Overlay */}
-        <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black/85 via-black/35 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <span
-            className="text-[11px] font-space-mono font-bold uppercase tracking-wider block"
-            style={{ color: theme.accentSoft }}
-          >
-            {item.category}
-          </span>
-          <h4 className="font-space-grotesk font-bold text-sm text-white leading-snug line-clamp-2">
-            {item.name}
-          </h4>
-          <span className="text-[10px] font-space-mono text-white/70 mt-1 flex items-center gap-1">
-            <span>Click to explore</span>
-            <ExternalLink className="w-3 h-3" />
-          </span>
-        </div>
-      </div>
-
-      {/* Card Base Bar */}
-      <div className="p-3.5 flex items-center justify-between glass-hairline border-l-0 border-r-0 border-b-0">
-        <span className="font-space-grotesk font-semibold text-xs glass-text-primary truncate max-w-[80%]">
-          {item.name}
-        </span>
-        <span className="text-[10px] font-space-mono glass-text-muted shrink-0">
-          {item.category}
-        </span>
       </div>
     </motion.div>
   );

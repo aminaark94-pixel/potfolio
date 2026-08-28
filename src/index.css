@@ -38,6 +38,10 @@
   font-family: 'Syne', sans-serif;
 }
 
+.font-roboto {
+  font-family: 'Roboto', sans-serif;
+}
+
 /* Sleek custom scrollbars */
 ::-webkit-scrollbar {
   width: 7px;
