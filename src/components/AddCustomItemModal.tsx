@@ -73,14 +73,14 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
     )
   ).sort();
 
-  // File Upload State
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // File Upload State — supports multiple files now
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<(string | null)[]>([]);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('');
-  const [uploadedDriveUrl, setUploadedDriveUrl] = useState<string | null>(null);
+  const [uploadedCount, setUploadedCount] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,28 +115,30 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
     setDriveAuth(null);
   };
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
+  const handleFilesSelect = (files: File[]) => {
+    if (files.length === 0) return;
     setErrorMessage(null);
     setUploadStatus('idle');
-    setUploadedDriveUrl(null);
 
-    // Auto-populate Title if empty
-    if (!name.trim()) {
-      const cleanName = file.name
+    setSelectedFiles((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [
+      ...prev,
+      ...files.map((file) => (file.type.startsWith('image/') ? URL.createObjectURL(file) : null)),
+    ]);
+
+    // Auto-populate Title only when it's a single-file selection (name is unused for multi-file batches)
+    if (!name.trim() && selectedFiles.length === 0 && files.length === 1) {
+      const cleanName = files[0].name
         .replace(/\.[^/.]+$/, '')
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (l) => l.toUpperCase());
       setName(cleanName);
     }
+  };
 
-    // Create local object URL for instant preview
-    if (file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    } else {
-      setPreviewUrl(null);
-    }
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -152,79 +154,97 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelect(Array.from(e.dataTransfer.files));
     }
   };
 
-  // Upload file directly to user's Google Drive via OAuth token
+  // Upload every selected file directly to user's Google Drive via OAuth token,
+  // creating one portfolio item per file.
   const handleDriveUploadAndSave = async () => {
-    if (!selectedFile) {
-      setErrorMessage('Please select a file to upload to Google Drive.');
+    if (selectedFiles.length === 0) {
+      setErrorMessage('Please select at least one file to upload to Google Drive.');
       return;
     }
-    if (!name.trim()) {
+    if (selectedFiles.length === 1 && !name.trim()) {
       setErrorMessage('Please enter a title for this portfolio project.');
       return;
     }
 
     setUploadStatus('uploading');
     setErrorMessage(null);
-    setUploadProgress(5);
+    setUploadProgress(0);
+    setUploadedCount(0);
     setStatusMessage('Connecting to Google Drive...');
 
     try {
-      // 1. Get access token
+      // 1. Get access token (once, reused for every file in the batch)
       let token = driveAuth?.token;
       if (!token) {
         token = await requestDriveAccessToken();
         setDriveAuth(getStoredDriveAuth());
       }
 
-      // 2. Upload file (into a Drive folder/subfolder matching category/subcategory)
       const folderNameForUpload = customCategory.trim() ? customCategory.trim() : category;
       const subFolderNameForUpload = customSubcategory.trim() ? customSubcategory.trim() : subcategory.trim();
-      const result = await uploadFileToGoogleDrive(
-        selectedFile,
-        token,
-        (progress, msg) => {
-          setUploadProgress(progress);
-          setStatusMessage(msg);
-        },
-        folderNameForUpload,
-        subFolderNameForUpload || undefined
-      );
-
-      setUploadedDriveUrl(result.webViewLink);
-      setUploadStatus('success');
-
-      // 3. Assemble Portfolio Item
       const finalCategory = customCategory.trim() ? customCategory.trim() : category;
       const finalSubcategory = subFolderNameForUpload || undefined;
-      const mediaType = detectMediaType(selectedFile.name, result.webViewLink);
       const keywords = keywordsStr
         .split(',')
         .map((k) => k.trim().toLowerCase())
         .filter(Boolean);
 
-      const newItem: PortfolioItem = {
-        id: 'drive-' + Date.now(),
-        name: name.trim(),
-        category: finalCategory,
-        subcategory: finalSubcategory,
-        drive_link: result.webViewLink,
-        behance_link: behanceLink.trim() || null,
-        thumb: getDriveThumb(result.webViewLink, 800) || previewUrl,
-        thumb_small: getDriveThumb(result.webViewLink, 400) || previewUrl,
-        thumb_large: getDriveThumb(result.webViewLink, 1400) || previewUrl,
-        mediaType,
-        keywords: keywords.length > 0 ? keywords : [finalCategory.toLowerCase(), 'google drive'],
-        custom: true,
-      };
+      const createdItems: PortfolioItem[] = [];
 
-      // Add to catalog & showcase
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setStatusMessage(`Uploading ${i + 1} of ${selectedFiles.length}: ${file.name}`);
+
+        const result = await uploadFileToGoogleDrive(
+          file,
+          token,
+          (progress, msg) => {
+            // Overall progress spans this file's slice of the whole batch
+            const overall = Math.round(((i + progress / 100) / selectedFiles.length) * 100);
+            setUploadProgress(overall);
+            setStatusMessage(msg || `Uploading ${i + 1} of ${selectedFiles.length}: ${file.name}`);
+          },
+          folderNameForUpload,
+          subFolderNameForUpload || undefined
+        );
+
+        const itemName =
+          selectedFiles.length === 1 && name.trim()
+            ? name.trim()
+            : file.name
+                .replace(/\.[^/.]+$/, '')
+                .replace(/[-_]/g, ' ')
+                .replace(/\b\w/g, (l) => l.toUpperCase());
+
+        const mediaType = detectMediaType(file.name, result.webViewLink);
+
+        createdItems.push({
+          id: 'drive-' + Date.now() + '-' + i,
+          name: itemName,
+          category: finalCategory,
+          subcategory: finalSubcategory,
+          drive_link: result.webViewLink,
+          behance_link: behanceLink.trim() || null,
+          thumb: getDriveThumb(result.webViewLink, 800) || previewUrls[i] || undefined,
+          thumb_small: getDriveThumb(result.webViewLink, 400) || previewUrls[i] || undefined,
+          thumb_large: getDriveThumb(result.webViewLink, 1400) || previewUrls[i] || undefined,
+          mediaType,
+          keywords: keywords.length > 0 ? keywords : [finalCategory.toLowerCase(), 'google drive'],
+          custom: true,
+        });
+
+        setUploadedCount(i + 1);
+      }
+
+      setUploadStatus('success');
+
       setTimeout(() => {
-        onAddItem(newItem);
+        createdItems.forEach((item) => onAddItem(item));
         onClose();
         resetForm();
       }, 1000);
@@ -281,12 +301,12 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
     setCustomCategory('');
     setSubcategory('');
     setCustomSubcategory('');
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    setSelectedFiles([]);
+    setPreviewUrls([]);
     setUploadStatus('idle');
     setUploadProgress(0);
     setStatusMessage('');
-    setUploadedDriveUrl(null);
+    setUploadedCount(0);
     setErrorMessage(null);
   };
 
@@ -450,16 +470,19 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                 {/* File Dropzone */}
                 <div>
                   <label className="block text-slate-900 font-space-grotesk font-bold mb-1.5">
-                    Select Image or Design Asset *
+                    Select Images or Design Assets *
                   </label>
 
                   <input
                     type="file"
                     ref={fileInputRef}
+                    multiple
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleFileSelect(e.target.files[0]);
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleFilesSelect(Array.from(e.target.files));
                       }
+                      // allow re-selecting the same file again after removal
+                      e.target.value = '';
                     }}
                     accept="image/*,video/mp4,application/pdf"
                     className="hidden"
@@ -473,20 +496,45 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                     className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                       isDragging
                         ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
-                        : selectedFile
+                        : selectedFiles.length > 0
                         ? 'border-emerald-300 bg-emerald-50/30'
                         : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
                     }`}
                   >
-                    {previewUrl ? (
-                      <div className="relative mb-3 group">
-                        <img
-                          src={previewUrl}
-                          alt="Upload preview"
-                          className="h-28 max-w-full object-contain rounded-2xl border border-slate-200 shadow-md bg-white p-1"
-                        />
-                        <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center text-white text-[11px] font-space-grotesk font-bold transition-opacity">
-                          Change file
+                    {selectedFiles.length > 0 ? (
+                      <div className="w-full grid grid-cols-3 sm:grid-cols-4 gap-2.5 mb-3">
+                        {selectedFiles.map((file, idx) => (
+                          <div
+                            key={idx}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm aspect-square"
+                          >
+                            {previewUrls[idx] ? (
+                              <img
+                                src={previewUrls[idx]!}
+                                alt={file.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                <FileCheck className="w-5 h-5 text-slate-400" />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(idx)}
+                              className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/80 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                              title="Remove"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <span className="absolute bottom-0 inset-x-0 px-1.5 py-0.5 bg-slate-900/70 text-white text-[9px] font-mono truncate">
+                              {file.name}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="aspect-square rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors">
+                          <Plus className="w-5 h-5" />
                         </div>
                       </div>
                     ) : (
@@ -495,20 +543,22 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                       </div>
                     )}
 
-                    {selectedFile ? (
+                    {selectedFiles.length > 0 ? (
                       <div className="space-y-1">
                         <div className="font-space-grotesk font-bold text-slate-900 text-sm flex items-center justify-center gap-1.5">
                           <FileCheck className="w-4 h-4 text-emerald-600" />
-                          <span className="truncate max-w-[280px]">{selectedFile.name}</span>
+                          <span>
+                            {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                          </span>
                         </div>
                         <p className="text-[11px] font-mono text-slate-500">
-                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload to Drive
+                          {(selectedFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(2)} MB total • Ready to upload to Drive • Click to add more
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-1">
                         <div className="font-space-grotesk font-bold text-slate-800 text-sm">
-                          Drag & drop design file here, or click to browse
+                          Drag & drop design files here, or click to browse (multiple allowed)
                         </div>
                         <p className="text-xs text-slate-500">
                           Supports high-res PNG, JPG, WebP, MP4, GIF (Will be saved in your Google Drive)
@@ -534,6 +584,11 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
+                    {selectedFiles.length > 1 && (
+                      <p className="text-[11px] font-mono text-indigo-700">
+                        {uploadedCount} of {selectedFiles.length} files uploaded
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -541,7 +596,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-emerald-800">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <div className="text-xs font-space-grotesk font-semibold">
-                      Successfully uploaded to your Google Drive and added to catalog!
+                      Successfully uploaded {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} to your Google Drive and added to catalog!
                     </div>
                   </div>
                 )}
@@ -578,16 +633,21 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
               {/* Title */}
               <div>
                 <label className="block text-slate-900 font-space-grotesk font-bold mb-1.5">
-                  Portfolio Item Title / Description *
+                  Portfolio Item Title / Description {activeTab === 'drive_upload' && selectedFiles.length > 1 ? '' : '*'}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!(activeTab === 'drive_upload' && selectedFiles.length > 1)}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Lumina Luxury Fragrance Packaging"
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all font-space-grotesk text-sm shadow-inner"
                 />
+                {activeTab === 'drive_upload' && selectedFiles.length > 1 && (
+                  <p className="text-[11px] text-slate-400 mt-1 font-space-mono">
+                    Multiple files selected — each item will be auto-named from its filename.
+                  </p>
+                )}
               </div>
 
               {/* Category */}
@@ -697,7 +757,7 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
               <button
                 type="button"
                 onClick={handleDriveUploadAndSave}
-                disabled={uploadStatus === 'uploading' || !selectedFile}
+                disabled={uploadStatus === 'uploading' || selectedFiles.length === 0}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-space-grotesk font-bold text-xs shadow-lg shadow-indigo-200 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 {uploadStatus === 'uploading' ? (
@@ -708,7 +768,11 @@ export const AddCustomItemModal: React.FC<AddCustomItemModalProps> = ({
                 ) : (
                   <>
                     <UploadCloud className="w-4 h-4" />
-                    <span>Upload & Add to Portfolio</span>
+                    <span>
+                      {selectedFiles.length > 1
+                        ? `Upload ${selectedFiles.length} Files & Add to Portfolio`
+                        : 'Upload & Add to Portfolio'}
+                    </span>
                   </>
                 )}
               </button>
