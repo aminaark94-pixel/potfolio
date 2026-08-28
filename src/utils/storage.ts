@@ -1,9 +1,32 @@
 import { Showcase, PortfolioItem } from '../types/portfolio';
 import { initializeCatalog } from '../data/rawPortfolioData';
 import { THEMES } from '../data/themes';
+import { db } from './firebaseClient';
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  writeBatch,
+} from 'firebase/firestore';
 
 const SHOWCASES_STORAGE_KEY = 'studio_portfolio_showcases_v1';
 const CUSTOM_ITEMS_STORAGE_KEY = 'studio_portfolio_custom_items_v1';
+
+const SHOWCASES_COLLECTION = 'showcases';
+const CUSTOM_ITEMS_COLLECTION = 'customItems';
+
+// Firestore rejects any field explicitly set to `undefined` — strip them
+// before every write so optional fields (subcategory, ctaLink, etc.) don't
+// throw "Unsupported field value: undefined" errors.
+function stripUndefined<T extends Record<string, any>>(obj: T): T {
+  const clean: Record<string, any> = {};
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] !== undefined) clean[key] = obj[key];
+  });
+  return clean as T;
+}
 
 export function getInitialShowcases(): Record<string, Showcase> {
   return {
@@ -62,6 +85,8 @@ export function getInitialShowcases(): Record<string, Showcase> {
 }
 
 export function loadStoredShowcases(): Record<string, Showcase> {
+  // Synchronous local cache — used only as an instant first paint before
+  // loadShowcasesFromCloud() resolves with the real shared data.
   try {
     const raw = localStorage.getItem(SHOWCASES_STORAGE_KEY);
     if (raw) {
@@ -73,9 +98,7 @@ export function loadStoredShowcases(): Record<string, Showcase> {
   } catch (e) {
     console.error('Failed to load showcases from localStorage', e);
   }
-  const defaults = getInitialShowcases();
-  saveStoredShowcases(defaults);
-  return defaults;
+  return {};
 }
 
 export function saveStoredShowcases(showcases: Record<string, Showcase>): void {
@@ -86,7 +109,65 @@ export function saveStoredShowcases(showcases: Record<string, Showcase>): void {
   }
 }
 
+/**
+ * Loads all showcases from the shared Firestore database (visible to every
+ * device/browser). Falls back to the bundled defaults on first-ever run,
+ * seeding Firestore with them so every client link works from any device.
+ */
+export async function loadShowcasesFromCloud(): Promise<Record<string, Showcase>> {
+  try {
+    const snap = await getDocs(collection(db, SHOWCASES_COLLECTION));
+    if (!snap.empty) {
+      const result: Record<string, Showcase> = {};
+      snap.forEach((d) => {
+        result[d.id] = d.data() as Showcase;
+      });
+      saveStoredShowcases(result);
+      return result;
+    }
+  } catch (e) {
+    console.error('Failed to load showcases from Firestore, using local cache', e);
+    const cached = loadStoredShowcases();
+    if (Object.keys(cached).length > 0) return cached;
+  }
+
+  // Nothing in Firestore yet — seed it with the starter showcases.
+  const defaults = getInitialShowcases();
+  try {
+    const batch = writeBatch(db);
+    Object.values(defaults).forEach((sc) => {
+      batch.set(doc(db, SHOWCASES_COLLECTION, sc.slug), stripUndefined(sc));
+    });
+    await batch.commit();
+  } catch (e) {
+    console.error('Failed to seed Firestore with default showcases', e);
+  }
+  saveStoredShowcases(defaults);
+  return defaults;
+}
+
+/** Writes a single showcase to the shared Firestore database. */
+export async function saveShowcaseToCloud(showcase: Showcase): Promise<void> {
+  try {
+    await setDoc(doc(db, SHOWCASES_COLLECTION, showcase.slug), stripUndefined(showcase));
+  } catch (e) {
+    console.error('Failed to save showcase to Firestore', e);
+    throw e;
+  }
+}
+
+/** Deletes a single showcase from the shared Firestore database. */
+export async function deleteShowcaseFromCloud(slug: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, SHOWCASES_COLLECTION, slug));
+  } catch (e) {
+    console.error('Failed to delete showcase from Firestore', e);
+    throw e;
+  }
+}
+
 export function loadStoredCustomItems(): PortfolioItem[] {
+  // Synchronous local cache — instant first paint before loadCustomItemsFromCloud() resolves.
   try {
     const raw = localStorage.getItem(CUSTOM_ITEMS_STORAGE_KEY);
     if (raw) {
@@ -106,6 +187,43 @@ export function saveStoredCustomItems(items: PortfolioItem[]): void {
     localStorage.setItem(CUSTOM_ITEMS_STORAGE_KEY, JSON.stringify(items));
   } catch (e) {
     console.error('Failed to save custom items to localStorage', e);
+  }
+}
+
+/** Loads all custom (uploaded) portfolio items from the shared Firestore database. */
+export async function loadCustomItemsFromCloud(): Promise<PortfolioItem[]> {
+  try {
+    const snap = await getDocs(collection(db, CUSTOM_ITEMS_COLLECTION));
+    const result: PortfolioItem[] = [];
+    snap.forEach((d) => result.push(d.data() as PortfolioItem));
+    saveStoredCustomItems(result);
+    return result;
+  } catch (e) {
+    console.error('Failed to load custom items from Firestore, using local cache', e);
+    return loadStoredCustomItems();
+  }
+}
+
+/** Writes a single custom item to the shared Firestore database. */
+export async function saveCustomItemToCloud(item: PortfolioItem): Promise<void> {
+  try {
+    await setDoc(doc(db, CUSTOM_ITEMS_COLLECTION, item.id), stripUndefined(item));
+  } catch (e) {
+    console.error('Failed to save custom item to Firestore', e);
+    throw e;
+  }
+}
+
+/** Writes many custom items to the shared Firestore database in one batch. */
+export async function saveCustomItemsToCloud(items: PortfolioItem[]): Promise<void> {
+  if (items.length === 0) return;
+  try {
+    const batch = writeBatch(db);
+    items.forEach((item) => batch.set(doc(db, CUSTOM_ITEMS_COLLECTION, item.id), stripUndefined(item)));
+    await batch.commit();
+  } catch (e) {
+    console.error('Failed to batch-save custom items to Firestore', e);
+    throw e;
   }
 }
 

@@ -10,11 +10,14 @@ import { AddCustomItemModal } from './components/AddCustomItemModal';
 import { Showcase, PortfolioItem } from './types/portfolio';
 import { THEMES } from './data/themes';
 import {
-  loadStoredShowcases,
-  saveStoredShowcases,
-  getAllPortfolioItems,
+  loadShowcasesFromCloud,
+  saveShowcaseToCloud,
+  deleteShowcaseFromCloud,
+  loadCustomItemsFromCloud,
+  saveCustomItemToCloud,
+  saveCustomItemsToCloud,
   saveStoredCustomItems,
-  loadStoredCustomItems,
+  getAllPortfolioItems,
 } from './utils/storage';
 
 export default function App() {
@@ -22,6 +25,9 @@ export default function App() {
   const [activeSlug, setActiveSlug] = useState<string>('new-client-f0c7');
   const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog'>('admin');
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  const [notFoundSlug, setNotFoundSlug] = useState<string | null>(null);
 
   // Admin auth: null = checking session with server, true = unlocked, false = locked
   const [isAdminAuthed, setIsAdminAuthed] = useState<boolean | null>(null);
@@ -44,37 +50,55 @@ export default function App() {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState<boolean>(false);
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState<boolean>(false);
 
-  // Initialize data on mount
+  // Initialize data on mount — loads from the shared Firestore database so
+  // every device/browser (including a client opening a shared link) sees
+  // the same showcases and uploaded items, not just the admin's own browser.
   useEffect(() => {
-    const loadedShowcases = loadStoredShowcases();
-    setShowcases(loadedShowcases);
+    (async () => {
+      try {
+        const [loadedShowcases, customItems] = await Promise.all([
+          loadShowcasesFromCloud(),
+          loadCustomItemsFromCloud(),
+        ]);
+        setShowcases(loadedShowcases);
+        saveStoredCustomItems(customItems);
+        setAllItems(getAllPortfolioItems());
 
-    const items = getAllPortfolioItems();
-    setAllItems(items);
+        // Check URL hash for direct client showcase link (e.g. #showcase=new-client-f0c7)
+        const hash = window.location.hash;
+        if (hash.includes('showcase=')) {
+          const slugMatch = hash.match(/showcase=([a-zA-Z0-9_-]+)/);
+          if (slugMatch && slugMatch[1]) {
+            if (loadedShowcases[slugMatch[1]]) {
+              setActiveSlug(slugMatch[1]);
+              setViewMode('client');
+            } else {
+              setNotFoundSlug(slugMatch[1]);
+            }
+            setIsDataLoading(false);
+            return;
+          }
+        }
 
-    // Check URL hash for direct client showcase link (e.g. #showcase=new-client-f0c7)
-    const hash = window.location.hash;
-    if (hash.includes('showcase=')) {
-      const slugMatch = hash.match(/showcase=([a-zA-Z0-9_-]+)/);
-      if (slugMatch && slugMatch[1] && loadedShowcases[slugMatch[1]]) {
-        setActiveSlug(slugMatch[1]);
-        setViewMode('client');
-        return;
+        const firstSlug = Object.keys(loadedShowcases)[0] || 'new-client-f0c7';
+        setActiveSlug(firstSlug);
+      } catch (e: any) {
+        console.error('Failed to load shared data', e);
+        setCloudError(e?.message || 'Could not connect to the shared database.');
+      } finally {
+        setIsDataLoading(false);
       }
-    }
-
-    const firstSlug = Object.keys(loadedShowcases)[0] || 'new-client-f0c7';
-    setActiveSlug(firstSlug);
+    })();
   }, []);
 
-  // Update showcases in state and localStorage
+  // Update showcases in state + shared Firestore database
   const handleUpdateShowcase = (updated: Showcase) => {
     const nextShowcases = {
       ...showcases,
       [updated.slug]: updated,
     };
     setShowcases(nextShowcases);
-    saveStoredShowcases(nextShowcases);
+    saveShowcaseToCloud(updated).catch(() => {});
   };
 
   // Create new showcase
@@ -84,7 +108,7 @@ export default function App() {
       [newShowcase.slug]: newShowcase,
     };
     setShowcases(nextShowcases);
-    saveStoredShowcases(nextShowcases);
+    saveShowcaseToCloud(newShowcase).catch(() => {});
     setActiveSlug(newShowcase.slug);
   };
 
@@ -93,7 +117,7 @@ export default function App() {
     const nextShowcases = { ...showcases };
     delete nextShowcases[slug];
     setShowcases(nextShowcases);
-    saveStoredShowcases(nextShowcases);
+    deleteShowcaseFromCloud(slug).catch(() => {});
     const remainingSlugs = Object.keys(nextShowcases);
     if (remainingSlugs.length > 0) {
       setActiveSlug(remainingSlugs[0]);
@@ -102,12 +126,12 @@ export default function App() {
 
   // Add custom portfolio item
   const handleAddCustomItem = (newItem: PortfolioItem) => {
-    const customItems = loadStoredCustomItems();
-    const nextCustom = [newItem, ...customItems];
-    saveStoredCustomItems(nextCustom);
+    saveCustomItemToCloud(newItem).catch(() => {});
 
     const updatedCatalog = getAllPortfolioItems();
-    setAllItems(updatedCatalog);
+    const nextCustom = [newItem, ...updatedCatalog.filter((i) => i.custom)];
+    saveStoredCustomItems(nextCustom);
+    setAllItems([newItem, ...updatedCatalog]);
 
     // If currently editing a showcase, optionally add to it
     if (showcases[activeSlug]) {
@@ -121,12 +145,12 @@ export default function App() {
   // Add many items at once (used by "Sync from Drive")
   const handleBulkAddItems = (newItems: PortfolioItem[]) => {
     if (newItems.length === 0) return;
-    const customItems = loadStoredCustomItems();
-    const nextCustom = [...newItems, ...customItems];
-    saveStoredCustomItems(nextCustom);
+    saveCustomItemsToCloud(newItems).catch(() => {});
 
     const updatedCatalog = getAllPortfolioItems();
-    setAllItems(updatedCatalog);
+    const nextCustom = [...newItems, ...updatedCatalog.filter((i) => i.custom)];
+    saveStoredCustomItems(nextCustom);
+    setAllItems([...newItems, ...updatedCatalog]);
   };
 
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
@@ -138,7 +162,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-600 selection:text-white">
       {/* Top Studio Navbar — admin/internal only, never shown on the client-facing showcase */}
-      {viewMode !== 'client' && (
+      {viewMode !== 'client' && !notFoundSlug && (
         <Navbar
           viewMode={viewMode}
           onSelectViewMode={setViewMode}
@@ -157,17 +181,42 @@ export default function App() {
 
       {/* Main View Area */}
       <div className="flex-1">
-        {viewMode === 'admin' && isAdminAuthed === null && (
+        {isDataLoading && (
+          <div className="min-h-[80vh] flex items-center justify-center text-slate-400 text-sm font-space-grotesk">
+            Loading portfolio...
+          </div>
+        )}
+
+        {!isDataLoading && notFoundSlug && (
+          <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4 gap-2">
+            <h2 className="font-space-grotesk font-bold text-xl text-slate-800">
+              Showcase Not Found
+            </h2>
+            <p className="text-sm text-slate-500 max-w-sm">
+              This link ("{notFoundSlug}") doesn't match any showcase. Please double-check the link with the studio.
+            </p>
+          </div>
+        )}
+
+        {!isDataLoading && cloudError && !notFoundSlug && (
+          <div className="min-h-[40vh] flex items-center justify-center text-center px-4">
+            <p className="text-xs text-amber-600 font-space-mono max-w-md">
+              Couldn't connect to the shared database ({cloudError}). Showing local data only — changes may not sync across devices.
+            </p>
+          </div>
+        )}
+
+        {!isDataLoading && !notFoundSlug && viewMode === 'admin' && isAdminAuthed === null && (
           <div className="min-h-[80vh] flex items-center justify-center text-slate-400 text-sm font-space-grotesk">
             Checking access...
           </div>
         )}
 
-        {viewMode === 'admin' && isAdminAuthed === false && (
+        {!isDataLoading && !notFoundSlug && viewMode === 'admin' && isAdminAuthed === false && (
           <AdminLogin onSuccess={() => setIsAdminAuthed(true)} />
         )}
 
-        {viewMode === 'admin' && isAdminAuthed === true && (
+        {!isDataLoading && !notFoundSlug && viewMode === 'admin' && isAdminAuthed === true && (
           <AdminPanel
             showcases={showcases}
             activeSlug={activeSlug}
@@ -184,7 +233,7 @@ export default function App() {
           />
         )}
 
-        {viewMode === 'client' && currentShowcase && (
+        {!isDataLoading && !notFoundSlug && viewMode === 'client' && currentShowcase && (
           <ClientShowcaseView
             showcase={currentShowcase}
             allItems={allItems}
@@ -196,7 +245,7 @@ export default function App() {
           />
         )}
 
-        {viewMode === 'catalog' && (
+        {!isDataLoading && !notFoundSlug && viewMode === 'catalog' && (
           <CatalogExplorer
             items={allItems}
             showcases={showcases}
