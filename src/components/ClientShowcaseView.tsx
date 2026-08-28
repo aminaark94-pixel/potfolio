@@ -261,6 +261,11 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                 className="h-9 w-auto rounded-lg object-contain bg-white p-1.5"
               />
             )}
+            <img
+              src={founderPhoto}
+              alt="Aala Studio"
+              className="hidden sm:block w-9 h-9 rounded-full object-cover glass-hairline shrink-0"
+            />
           </div>
 
           {/* Client Target & Action Suite */}
@@ -462,33 +467,15 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
 
       {/* Footer */}
       <footer className="relative z-10 glass-hairline border-l-0 border-r-0 border-b-0 py-10 px-4 text-center space-y-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <img
-              src={founderPhoto}
-              alt="Aala Studio"
-              className="w-10 h-10 rounded-full object-cover glass-hairline"
-            />
-            <div className="text-left">
-              <span className="font-space-grotesk font-semibold text-xs glass-text-primary block">
-                Aala Studio
-              </span>
-              <span className="text-[11px] font-space-mono glass-text-muted">
-                Prepared exclusively for you
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs font-space-mono glass-text-muted">
-            <span>© {new Date().getFullYear()} {showcase.brand_name || 'Aala Studio'}</span>
-            <span>•</span>
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="hover:glass-text-primary transition-colors cursor-pointer"
-            >
-              Back to Top ↑
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-xs font-space-mono glass-text-muted">
+          <span>© {new Date().getFullYear()} {showcase.brand_name || 'Aala Studio'}</span>
+          <span className="hidden sm:inline">•</span>
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="hover:glass-text-primary transition-colors cursor-pointer"
+          >
+            Back to Top ↑
+          </button>
         </div>
       </footer>
 
