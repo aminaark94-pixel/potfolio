@@ -2,7 +2,7 @@
 // Safe by design: it always sends to the FIXED addresses below (env-configured),
 // never to an address supplied by whoever clicks the button.
 
-const RECOVERY_EMAIL = 'designer.dstudio@gmail.com';
+const RECOVERY_EMAIL = 'deziner.dstudio@gmail.com';
 const RECOVERY_WHATSAPP_PHONE = '923122331949'; // no + or leading 00
 
 async function sendEmail(password) {
