@@ -5,8 +5,14 @@
 
 import { verify, parseCookies, COOKIE_NAME } from './_auth.js';
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+const GROQ_API_KEYS = (process.env.GROQ_API_KEY || '')
+  .split(',')
+  .map((k) => k.trim())
+  .filter(Boolean);
+const MISTRAL_API_KEYS = (process.env.MISTRAL_API_KEY || '')
+  .split(',')
+  .map((k) => k.trim())
+  .filter(Boolean);
 
 /**
  * Standard slugify helper
@@ -62,87 +68,116 @@ function localKeywordMatching(jobPostText, portfolioItems) {
 }
 
 /**
- * Call Groq API with fetch and timeout
+ * Call Groq API — tries every configured key in order (comma-separated in
+ * GROQ_API_KEY) until one succeeds, so a rate-limited/blocked key doesn't
+ * take the whole feature down.
  */
 async function callGroq(messages, jsonMode = false, timeoutMs = 6500) {
-  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured');
-  
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (GROQ_API_KEYS.length === 0) throw new Error('GROQ_API_KEY not configured');
 
-  try {
-    const payload = {
-      model: "llama-3.3-70b-versatile",
-      messages,
-      temperature: 0.3,
-      max_tokens: 1500
-    };
-    if (jsonMode) {
-      payload.response_format = { type: "json_object" };
+  let lastErr = null;
+  for (const key of GROQ_API_KEYS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const payload = {
+        model: "llama-3.3-70b-versatile",
+        messages,
+        temperature: 0.3,
+        max_tokens: 1500
+      };
+      if (jsonMode) {
+        payload.response_format = { type: "json_object" };
+      }
+
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key}`
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        // 401 (bad key) or 429 (rate-limited) — try the next key instead of giving up
+        if (res.status === 401 || res.status === 429) {
+          lastErr = new Error(`Groq key rejected (${res.status}): ${errText}`);
+          continue;
+        }
+        throw new Error(`Groq API error ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      lastErr = err;
+      if (err.name === 'AbortError') continue; // timed out — try next key
+      if (!/rejected/.test(err.message)) throw err; // real error, not a key issue — stop retrying
+    } finally {
+      clearTimeout(timer);
     }
-
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Groq API error ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || "";
-  } finally {
-    clearTimeout(timer);
   }
+
+  throw lastErr || new Error('All Groq API keys failed');
 }
 
 /**
- * Call Mistral API with fetch and timeout (fallback)
+ * Call Mistral API — same multi-key fallback as Groq above.
  */
 async function callMistral(messages, jsonMode = false, timeoutMs = 6500) {
-  if (!MISTRAL_API_KEY) throw new Error('MISTRAL_API_KEY not configured');
+  if (MISTRAL_API_KEYS.length === 0) throw new Error('MISTRAL_API_KEY not configured');
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let lastErr = null;
+  for (const key of MISTRAL_API_KEYS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const payload = {
-      model: "mistral-small-latest",
-      messages,
-      temperature: 0.3,
-      max_tokens: 1500
-    };
-    if (jsonMode) {
-      payload.response_format = { type: "json_object" };
+    try {
+      const payload = {
+        model: "mistral-small-latest",
+        messages,
+        temperature: 0.3,
+        max_tokens: 1500
+      };
+      if (jsonMode) {
+        payload.response_format = { type: "json_object" };
+      }
+
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key}`
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        if (res.status === 401 || res.status === 429) {
+          lastErr = new Error(`Mistral key rejected (${res.status}): ${errText}`);
+          continue;
+        }
+        throw new Error(`Mistral API error ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      lastErr = err;
+      if (err.name === 'AbortError') continue;
+      if (!/rejected/.test(err.message)) throw err;
+    } finally {
+      clearTimeout(timer);
     }
-
-    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${MISTRAL_API_KEY}`
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Mistral API error ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || "";
-  } finally {
-    clearTimeout(timer);
   }
+
+  throw lastErr || new Error('All Mistral API keys failed');
 }
 
 /**
