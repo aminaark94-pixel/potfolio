@@ -77,3 +77,32 @@ export interface CategorySummary {
   count: number;
   iconName?: string;
 }
+
+export interface UserProfile {
+  fullName: string;
+  roleTitle: string;
+  bio: string;
+  email: string;
+  phone?: string;
+  location?: string;
+}
+
+export interface CoverLetterStyle {
+  id: string;
+  name: string;
+  description?: string;
+  sampleText: string;
+  isDefault?: boolean;
+  createdAt: string;
+}
+
+export interface CoverLetterGenerationResult {
+  coverLetter: string;
+  showcaseLink: string;
+  showcaseSlug: string;
+  showcaseHeading: string;
+  matchedItemIds: string[];
+  matchedItems: PortfolioItem[];
+  showcase: Showcase;
+  provider: string;
+}

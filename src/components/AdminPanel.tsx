@@ -36,6 +36,7 @@ import {
   clearDriveToken,
   DriveScannedFile,
 } from '../utils/googleDrive';
+import { CoverLetterTab } from './CoverLetterTab';
 import confetti from 'canvas-confetti';
 
 function extractDriveFileId(driveLink: string | null | undefined): string | null {
@@ -85,6 +86,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newClientHeading, setNewClientHeading] = useState('');
   const [newTagline, setNewTagline] = useState('A selection of work, put together specifically for you.');
   const [newTheme, setNewTheme] = useState<ThemeId>('rust');
+
+  // Top-level section switcher: Showcases workspace vs Cover Letter generator
+  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter'>('showcases');
 
   // Search & Catalog Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -291,6 +295,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Section Tabs */}
+      <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200">
+        <button
+          onClick={() => setActiveSection('showcases')}
+          className={`px-4 py-2 rounded-xl text-xs font-space-grotesk font-bold transition-all cursor-pointer ${
+            activeSection === 'showcases'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Showcases
+        </button>
+        <button
+          onClick={() => setActiveSection('coverletter')}
+          className={`px-4 py-2 rounded-xl text-xs font-space-grotesk font-bold transition-all cursor-pointer ${
+            activeSection === 'coverletter'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Cover Letter Generator
+        </button>
+      </div>
+
+      {activeSection === 'coverletter' && (
+        <CoverLetterTab
+          onShowcaseCreated={onUpdateShowcase}
+          onNavigateToShowcase={(slug) => {
+            onSelectShowcase(slug);
+            setActiveSection('showcases');
+            onOpenClientView();
+          }}
+        />
+      )}
+
+      {activeSection === 'showcases' && (
+      <>
       {/* Studio Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-[28px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white shadow-xl shadow-indigo-200/60 relative overflow-hidden">
         <div className="relative z-10">
@@ -992,6 +1033,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

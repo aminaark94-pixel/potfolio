@@ -1,10 +1,11 @@
-import { Showcase, PortfolioItem } from '../types/portfolio';
+import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle } from '../types/portfolio';
 import { initializeCatalog } from '../data/rawPortfolioData';
 import { THEMES } from '../data/themes';
 import { db } from './firebaseClient';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   setDoc,
   deleteDoc,
@@ -531,4 +532,47 @@ function escapeHtml(text: string | null | undefined): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cover Letter Generator: Profile + Style storage (Firestore-backed)
+// ─────────────────────────────────────────────────────────────
+
+const PROFILE_DOC_ID = 'profile';
+
+export async function loadProfileFromCloud(): Promise<UserProfile> {
+  const empty: UserProfile = { fullName: '', roleTitle: '', bio: '', email: '' };
+  try {
+    const snap = await getDoc(doc(db, 'settings', PROFILE_DOC_ID));
+    if (snap.exists()) {
+      return { ...empty, ...(snap.data() as UserProfile) };
+    }
+  } catch (e) {
+    console.error('Failed to load profile from Firestore', e);
+  }
+  return empty;
+}
+
+export async function saveProfileToCloud(profile: UserProfile): Promise<void> {
+  await setDoc(doc(db, 'settings', PROFILE_DOC_ID), stripUndefined(profile));
+}
+
+export async function loadCoverLetterStylesFromCloud(): Promise<CoverLetterStyle[]> {
+  try {
+    const snap = await getDocs(collection(db, 'coverLetterStyles'));
+    const styles: CoverLetterStyle[] = [];
+    snap.forEach((d) => styles.push(d.data() as CoverLetterStyle));
+    return styles.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  } catch (e) {
+    console.error('Failed to load cover letter styles from Firestore', e);
+    return [];
+  }
+}
+
+export async function saveCoverLetterStyleToCloud(style: CoverLetterStyle): Promise<void> {
+  await setDoc(doc(db, 'coverLetterStyles', style.id), stripUndefined(style));
+}
+
+export async function deleteCoverLetterStyleFromCloud(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'coverLetterStyles', id));
 }

@@ -3,8 +3,10 @@
  * ESM syntax (package.json has "type": "module")
  */
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || "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";
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || "5ncD36TNGoW7RxdUOELPV1h34PkwcXFs";
+import { verify, parseCookies, COOKIE_NAME } from './_auth.js';
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
 /**
  * Standard slugify helper
@@ -191,6 +193,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
+  // Require a valid admin session — this endpoint calls paid AI APIs and
+  // creates showcases, so it must not be callable by anonymous visitors.
+  const cookies = parseCookies(req);
+  const session = verify(cookies[COOKIE_NAME]);
+  if (!session) {
+    return res.status(401).json({ error: 'Not authenticated. Please log in to Studio Hub first.' });
+  }
+
   try {
     const { jobPostText, styleSampleText, styleName, profile, portfolioItems = [] } = req.body || {};
 
@@ -309,8 +319,8 @@ Return ONLY a valid JSON object in this exact format:
       tagline: `Curated design & creative deliverables tailored for ${cleanHeading}`,
       logo_url: "",
       item_ids: matchedItemIds,
-      theme: "modern-dark",
-      heroStyle: "centered-minimal",
+      theme: "indigo",
+      heroStyle: "minimal-glow",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
