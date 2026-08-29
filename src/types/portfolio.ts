@@ -101,8 +101,10 @@ export interface CoverLetterGenerationResult {
   showcaseLink: string;
   showcaseSlug: string;
   showcaseHeading: string;
+  clientNameDetected?: string | null;
   matchedItemIds: string[];
   matchedItems: PortfolioItem[];
   showcase: Showcase;
   provider: string;
+  matchingProvider?: string;
 }

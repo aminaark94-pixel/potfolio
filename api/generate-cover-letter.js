@@ -31,7 +31,8 @@ function slugify(text) {
 }
 
 /**
- * Local keyword overlap matching algorithm (fallback)
+ * Local keyword overlap matching algorithm (fallback / top-up).
+ * Returns ids sorted best-first — caller decides how many to keep.
  */
 function localKeywordMatching(jobPostText, portfolioItems) {
   const text = (jobPostText || '').toLowerCase();
@@ -62,9 +63,7 @@ function localKeywordMatching(jobPostText, portfolioItems) {
   });
 
   scored.sort((a, b) => b.score - a.score);
-  // Pick top 6 to 10 items (or all available if fewer)
-  const topCount = Math.min(Math.max(6, Math.min(scored.length, 10)), scored.length);
-  return scored.slice(0, topCount).map(s => s.item.id);
+  return scored.map(s => s.item.id);
 }
 
 /**
@@ -76,7 +75,8 @@ async function callGroq(messages, jsonMode = false, timeoutMs = 6500) {
   if (GROQ_API_KEYS.length === 0) throw new Error('GROQ_API_KEY not configured');
 
   let lastErr = null;
-  for (const key of GROQ_API_KEYS) {
+  for (let i = 0; i < GROQ_API_KEYS.length; i++) {
+    const key = GROQ_API_KEYS[i];
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -112,7 +112,12 @@ async function callGroq(messages, jsonMode = false, timeoutMs = 6500) {
       }
 
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      return {
+        content: data.choices?.[0]?.message?.content || "",
+        provider: 'Groq',
+        keyIndex: i + 1,
+        keyCount: GROQ_API_KEYS.length,
+      };
     } catch (err) {
       lastErr = err;
       if (err.name === 'AbortError') continue; // timed out — try next key
@@ -132,7 +137,8 @@ async function callMistral(messages, jsonMode = false, timeoutMs = 6500) {
   if (MISTRAL_API_KEYS.length === 0) throw new Error('MISTRAL_API_KEY not configured');
 
   let lastErr = null;
-  for (const key of MISTRAL_API_KEYS) {
+  for (let i = 0; i < MISTRAL_API_KEYS.length; i++) {
+    const key = MISTRAL_API_KEYS[i];
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -167,7 +173,12 @@ async function callMistral(messages, jsonMode = false, timeoutMs = 6500) {
       }
 
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      return {
+        content: data.choices?.[0]?.message?.content || "",
+        provider: 'Mistral',
+        keyIndex: i + 1,
+        keyCount: MISTRAL_API_KEYS.length,
+      };
     } catch (err) {
       lastErr = err;
       if (err.name === 'AbortError') continue;
@@ -178,6 +189,18 @@ async function callMistral(messages, jsonMode = false, timeoutMs = 6500) {
   }
 
   throw lastErr || new Error('All Mistral API keys failed');
+}
+
+/**
+ * Tries Groq first, then Mistral. Returns { content, provider, keyIndex, keyCount }.
+ */
+async function callAI(messages, jsonMode = false, timeoutMs = 6500) {
+  try {
+    return await callGroq(messages, jsonMode, timeoutMs);
+  } catch (groqErr) {
+    console.warn('Groq call failed, falling back to Mistral:', groqErr.message);
+    return await callMistral(messages, jsonMode, timeoutMs);
+  }
 }
 
 /**
@@ -247,6 +270,9 @@ export default async function handler(req, res) {
     const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
     const baseUrl = `${protocol}://${host}`;
 
+    const MIN_ITEMS = 6;
+    const MAX_ITEMS = 10;
+
     // Lightweight item representation
     const catalog = portfolioItems.map(item => ({
       id: item.id,
@@ -257,53 +283,56 @@ export default async function handler(req, res) {
     }));
 
     // ─────────────────────────────────────────────────────────────
-    // STEP A: Relevant Portfolio Matching
+    // STEP A: Relevant Portfolio Matching + Client/Role Extraction
     // ─────────────────────────────────────────────────────────────
     let matchedItemIds = [];
-    let providerUsed = 'groq';
+    let clientName = null; // real client/company name, only if the job post actually names one
+    let jobTitle = null;   // the role/position being applied to
 
-    const matchPrompt = `You are an expert design director and talent matcher for "Aala Studio".
-Match the following job post requirements with the most relevant portfolio projects from the catalog below.
+    const matchPrompt = `You are an expert design director and talent matcher for a creative studio.
+Read the job post below carefully and do two things:
+
+1. Select the ${MIN_ITEMS} to ${MAX_ITEMS} MOST relevant portfolio items from the catalog, based on
+   matching the job's required skills, deliverables, tools, and industry against each item's
+   category/subcategory/keywords. You MUST return at least ${MIN_ITEMS} ids if the catalog has that
+   many items — pick the closest matches even if the match isn't perfect, never return fewer than
+   ${MIN_ITEMS} unless the catalog itself has fewer than ${MIN_ITEMS} items total.
+2. Extract two separate facts from the job post text:
+   - "client_name": the actual hiring company/client/brand name IF the job post explicitly names one
+     (e.g. "NexaPay Technologies", "Acme Studio"). If no real company/client name is mentioned
+     anywhere in the text, set this to null — do NOT invent or guess a name.
+   - "job_title": the role/position title being hired for (e.g. "Senior Product Designer"). Always
+     provide your best guess for this even if client_name is null.
 
 JOB POST:
 """
 ${jobPostText.substring(0, 4000)}
 """
 
-AVAILABLE PORTFOLIO ITEMS CATALOG:
+AVAILABLE PORTFOLIO ITEMS CATALOG (${portfolioItems.length} items total):
 ${JSON.stringify(catalog, null, 2)}
 
-TASK:
-Analyze the required skills, deliverables, tools, industry, and role expectations in the job post.
-Select the 6 to 10 most relevant portfolio item IDs.
 Return ONLY a valid JSON object in this exact format:
 {
   "matched_item_ids": ["id-1", "id-2", "id-3", "id-4", "id-5", "id-6"],
-  "company_or_role_guess": "Company or Role Name"
+  "client_name": "Company Name" or null,
+  "job_title": "Role Title"
 }`;
 
     const matchMessages = [
-      { role: "system", content: "You are an intelligent portfolio matching engine. You always respond with valid JSON containing matched_item_ids array." },
+      { role: "system", content: "You are an intelligent portfolio matching engine. You always respond with valid JSON only, never fewer matches than requested." },
       { role: "user", content: matchPrompt }
     ];
 
     let matchRaw = '';
-    let extractedDetails = null;
+    let matchingProviderInfo = null;
 
     try {
-      // 1. Try Groq
-      matchRaw = await callGroq(matchMessages, true, 6000);
-      providerUsed = 'Groq (llama-3.3-70b)';
-    } catch (groqErr) {
-      console.warn('Groq matching failed, attempting Mistral fallback:', groqErr.message);
-      try {
-        // 2. Try Mistral Fallback
-        matchRaw = await callMistral(matchMessages, true, 6000);
-        providerUsed = 'Mistral (mistral-small)';
-      } catch (mistralErr) {
-        console.warn('Mistral matching also failed, using local keyword matching fallback:', mistralErr.message);
-        providerUsed = 'Local Algorithmic Matching';
-      }
+      const matchResult = await callAI(matchMessages, true, 7000);
+      matchRaw = matchResult.content;
+      matchingProviderInfo = matchResult;
+    } catch (matchErr) {
+      console.warn('AI matching failed entirely, using local keyword matching fallback:', matchErr.message);
     }
 
     if (matchRaw) {
@@ -313,45 +342,58 @@ Return ONLY a valid JSON object in this exact format:
           const validCatalogIds = new Set(portfolioItems.map(i => i.id));
           matchedItemIds = parsed.matched_item_ids.filter(id => validCatalogIds.has(id));
         }
-        if (parsed.company_or_role_guess && typeof parsed.company_or_role_guess === 'string') {
-          extractedDetails = {
-            heading: parsed.company_or_role_guess.trim(),
-            brandName: parsed.company_or_role_guess.trim()
-          };
+        if (typeof parsed.client_name === 'string' && parsed.client_name.trim()) {
+          clientName = parsed.client_name.trim();
+        }
+        if (typeof parsed.job_title === 'string' && parsed.job_title.trim()) {
+          jobTitle = parsed.job_title.trim();
         }
       } catch (e) {
         console.warn('Failed to parse AI JSON response, falling back to local matching', e);
       }
     }
 
-    // If AI matching returned empty or failed, use local keyword overlap
-    if (!matchedItemIds || matchedItemIds.length === 0) {
-      matchedItemIds = localKeywordMatching(jobPostText, portfolioItems);
+    // Top up with local keyword matching if the AI returned fewer than MIN_ITEMS
+    // (or failed entirely) — never leave the showcase with just 1-2 items.
+    if (matchedItemIds.length < Math.min(MIN_ITEMS, portfolioItems.length)) {
+      const localRanked = localKeywordMatching(jobPostText, portfolioItems);
+      for (const id of localRanked) {
+        if (matchedItemIds.length >= MIN_ITEMS) break;
+        if (!matchedItemIds.includes(id)) matchedItemIds.push(id);
+      }
     }
+    matchedItemIds = matchedItemIds.slice(0, MAX_ITEMS);
 
-    // Ensure at least 3-6 items exist
     if (matchedItemIds.length === 0 && portfolioItems.length > 0) {
-      matchedItemIds = portfolioItems.slice(0, 6).map(i => i.id);
+      matchedItemIds = portfolioItems.slice(0, MIN_ITEMS).map(i => i.id);
     }
 
     // ─────────────────────────────────────────────────────────────
-    // STEP B: Auto-Create Showcase
+    // STEP B: Auto-Create Showcase — client name on top if known,
+    // otherwise a generic heading built from the job title.
     // ─────────────────────────────────────────────────────────────
-    if (!extractedDetails) {
-      extractedDetails = extractOpportunityDetails(jobPostText);
+    if (!jobTitle) {
+      const regexFallback = extractOpportunityDetails(jobPostText);
+      jobTitle = regexFallback.heading;
+      if (!clientName) clientName = null; // keep explicit — never guess a client name
     }
+
+    const usingClientName = !!clientName;
+    const cleanHeading = usingClientName ? clientName : jobTitle;
+    const brandNameForShowcase = usingClientName ? clientName : 'Aala Studio';
 
     const randomSuffix = Math.random().toString(36).substring(2, 6);
-    const cleanHeading = extractedDetails.heading || "Target Opportunity";
     const slug = `${slugify(cleanHeading)}-${randomSuffix}`;
     const showcaseLink = `${baseUrl}/#showcase=${slug}`;
 
     const newShowcase = {
       id: `showcase-${Date.now()}-${randomSuffix}`,
       slug: slug,
-      brand_name: extractedDetails.brandName || cleanHeading,
+      brand_name: brandNameForShowcase,
       heading: cleanHeading,
-      tagline: `Curated design & creative deliverables tailored for ${cleanHeading}`,
+      tagline: usingClientName
+        ? `Curated design & creative deliverables tailored for ${clientName}`
+        : `Curated case studies tailored for this ${jobTitle} opportunity`,
       logo_url: "",
       item_ids: matchedItemIds,
       theme: "indigo",
@@ -394,13 +436,16 @@ ${showcaseLink}
 FEATURED MATCHED CASE STUDIES INCLUDED IN THE SHOWCASE:
 ${matchedProjectNames}
 
-STYLE REFERENCE (TONE, PACING, AND STRUCTURE TO EMULATE):
+STYLE REFERENCE — YOU MUST CLOSELY MIRROR THIS, NOT JUST ITS TONE:
 """
 ${styleSampleText || `Hi Team,\n\nI saw your opening and immediately recognized an opportunity to bring high-impact design leadership to your team...`}
 """
 
 INSTRUCTIONS:
-1. Emulate the tone, structure, and length of the style reference above (${styleName || 'Custom Style'}).
+1. Treat the style reference above (${styleName || 'Custom Style'}) as a strict template: match its
+   opening line style, paragraph count, paragraph length, sentence rhythm, sign-off format, and
+   overall structure as closely as possible. Only change the actual content (names, projects,
+   requirements) — do not deviate from its format or invent a different structure.
 2. Specifically address the core pain points and requirements mentioned in the job post.
 3. Naturally embed the curated showcase link (${showcaseLink}) in a compelling, single sentence inviting the hiring team or client to review this tailored compilation of work.
 4. Keep the writing polished, authentic, punchy, and confident without corporate fluff or generic buzzwords.
@@ -408,23 +453,21 @@ INSTRUCTIONS:
 6. Output ONLY the raw cover letter text ready to copy-paste. No preamble, no quotes around the whole text, no markdown backtick wrapper.`;
 
     const coverMessages = [
-      { role: "system", content: "You are an elite creative director and professional copywriter crafting tailored, high-converting cover letters." },
+      { role: "system", content: "You are an elite creative director and professional copywriter. You strictly mirror the structure of any style reference you are given." },
       { role: "user", content: coverLetterPrompt }
     ];
 
     let generatedLetter = '';
+    let generationProviderInfo = null;
 
     try {
-      generatedLetter = await callGroq(coverMessages, false, 6500);
-    } catch (groqCoverErr) {
-      console.warn('Groq cover letter generation failed, trying Mistral:', groqCoverErr.message);
-      try {
-        generatedLetter = await callMistral(coverMessages, false, 6500);
-      } catch (mistralCoverErr) {
-        console.warn('Mistral cover letter generation failed, generating smart template fallback:', mistralCoverErr.message);
-        // Smart fallback template
-        generatedLetter = `Hi ${cleanHeading} Team,\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nAfter reviewing your requirements for this role, I curated a dedicated portfolio showcase featuring our most relevant case studies and deliverables:\n${showcaseLink}\n\nI’d welcome the opportunity to discuss how our background aligns with your upcoming roadmap.\n\nBest regards,\n${candidateProfile.fullName}\n${candidateProfile.email}`;
-      }
+      const coverResult = await callAI(coverMessages, false, 7000);
+      generatedLetter = coverResult.content;
+      generationProviderInfo = coverResult;
+    } catch (coverErr) {
+      console.warn('Both Groq and Mistral cover letter generation failed, using template fallback:', coverErr.message);
+      // Smart fallback template
+      generatedLetter = `Hi ${cleanHeading} Team,\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nAfter reviewing your requirements for this role, I curated a dedicated portfolio showcase featuring our most relevant case studies and deliverables:\n${showcaseLink}\n\nI’d welcome the opportunity to discuss how our background aligns with your upcoming roadmap.\n\nBest regards,\n${candidateProfile.fullName}\n${candidateProfile.email}`;
     }
 
     // Clean up any extraneous markdown wrapper if present
@@ -440,15 +483,24 @@ INSTRUCTIONS:
 
     const matchedFullItems = portfolioItems.filter(i => matchedItemIds.includes(i.id));
 
+    // Human-readable provenance string for the UI, e.g. "Groq — API key #2 of 3"
+    const providerLabel = generationProviderInfo
+      ? `${generationProviderInfo.provider} — API key #${generationProviderInfo.keyIndex} of ${generationProviderInfo.keyCount}`
+      : 'Local fallback template (both AI providers unavailable)';
+
     return res.status(200).json({
       coverLetter: generatedLetter,
       showcaseLink,
       showcaseSlug: slug,
       showcaseHeading: cleanHeading,
+      clientNameDetected: usingClientName ? clientName : null,
       matchedItemIds,
       matchedItems: matchedFullItems,
       showcase: newShowcase,
-      provider: providerUsed
+      provider: providerLabel,
+      matchingProvider: matchingProviderInfo
+        ? `${matchingProviderInfo.provider} — API key #${matchingProviderInfo.keyIndex} of ${matchingProviderInfo.keyCount}`
+        : 'Local keyword matching'
     });
   } catch (err) {
     console.error('Serverless cover letter generation error:', err);

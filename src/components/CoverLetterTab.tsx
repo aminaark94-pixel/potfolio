@@ -492,6 +492,12 @@ Key Requirements:
                   <p className="text-xs text-slate-500">
                     Ready to copy or fine-tune before sending.
                   </p>
+                  <p className="text-[11px] text-slate-400 font-mono mt-1">
+                    Generated via {result.provider}
+                    {result.clientNameDetected && (
+                      <span className="text-emerald-600"> • Client name detected: {result.clientNameDetected}</span>
+                    )}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -548,7 +554,7 @@ Key Requirements:
                     Matched Portfolio Work ({result.matchedItems.length} items)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Selected by AI matching algorithms based on the job requirements.
+                    Selected by AI matching against the job post ({result.matchingProvider || 'AI matching'}).
                   </p>
                 </div>
               </div>
