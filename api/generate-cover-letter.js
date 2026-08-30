@@ -288,9 +288,10 @@ export default async function handler(req, res) {
     let matchedItemIds = [];
     let clientName = null; // real client/company name, only if the job post actually names one
     let jobTitle = null;   // the role/position being applied to
+    let specialistTitle = null; // e.g. "Top-Rated Graphic & Brand Identity Design Specialist"
 
     const matchPrompt = `You are an expert design director and talent matcher for a creative studio.
-Read the job post below carefully and do two things:
+Read the job post below carefully and do three things:
 
 1. Select the ${MIN_ITEMS} to ${MAX_ITEMS} MOST relevant portfolio items from the catalog, based on
    matching the job's required skills, deliverables, tools, and industry against each item's
@@ -303,6 +304,11 @@ Read the job post below carefully and do two things:
      anywhere in the text, set this to null — do NOT invent or guess a name.
    - "job_title": the role/position title being hired for (e.g. "Senior Product Designer"). Always
      provide your best guess for this even if client_name is null.
+3. Write a short, confident professional title describing the applicant AS AN EXPERT IN THIS SPECIFIC
+   JOB'S DISCIPLINE — this is NOT the client's job title, it's how the applicant should present
+   themselves for this kind of work. Examples: a branding/logo job → "Top-Rated Graphic & Brand
+   Identity Design Specialist"; an Instagram/social content job → "Instagram Visual Content & Social
+   Media Design Specialist"; a UI/UX job → "Senior UI/UX Product Designer". Put this in "specialist_title".
 
 JOB POST:
 """
@@ -316,7 +322,8 @@ Return ONLY a valid JSON object in this exact format:
 {
   "matched_item_ids": ["id-1", "id-2", "id-3", "id-4", "id-5", "id-6"],
   "client_name": "Company Name" or null,
-  "job_title": "Role Title"
+  "job_title": "Role Title",
+  "specialist_title": "Top-Rated Graphic & Brand Identity Design Specialist"
 }`;
 
     const matchMessages = [
@@ -348,6 +355,9 @@ Return ONLY a valid JSON object in this exact format:
         if (typeof parsed.job_title === 'string' && parsed.job_title.trim()) {
           jobTitle = parsed.job_title.trim();
         }
+        if (typeof parsed.specialist_title === 'string' && parsed.specialist_title.trim()) {
+          specialistTitle = parsed.specialist_title.trim();
+        }
       } catch (e) {
         console.warn('Failed to parse AI JSON response, falling back to local matching', e);
       }
@@ -377,6 +387,9 @@ Return ONLY a valid JSON object in this exact format:
       jobTitle = regexFallback.heading;
       if (!clientName) clientName = null; // keep explicit — never guess a client name
     }
+    if (!specialistTitle) {
+      specialistTitle = jobTitle ? `${jobTitle} Specialist` : 'Creative Design Specialist';
+    }
 
     const usingClientName = !!clientName;
     const cleanHeading = usingClientName ? clientName : jobTitle;
@@ -405,11 +418,14 @@ Return ONLY a valid JSON object in this exact format:
     // ─────────────────────────────────────────────────────────────
     // STEP C: Generate Cover Letter
     // ─────────────────────────────────────────────────────────────
-    const candidateProfile = profile || {
-      fullName: 'Aala Studio',
-      roleTitle: 'Senior Product Designer & Creative Technologist',
-      bio: 'Multi-disciplinary design partner specializing in high-impact brand identities, scalable UI/UX design systems, modern web development, and immersive motion graphics.',
-      email: 'hello@aalastudio.design'
+    // Never invent a brand/name — signature is built ONLY from what the
+    // admin actually filled in the Profile tab, plus the AI-generated
+    // per-job specialist title. Anything not provided is simply omitted.
+    const candidateProfile = {
+      fullName: (profile && profile.fullName && profile.fullName.trim()) || '',
+      bio: (profile && profile.bio && profile.bio.trim()) || '',
+      email: (profile && profile.email && profile.email.trim()) || '',
+      phone: (profile && profile.phone && profile.phone.trim()) || '',
     };
 
     const matchedProjectNames = portfolioItems
@@ -417,13 +433,15 @@ Return ONLY a valid JSON object in this exact format:
       .map(i => `• ${i.name} (${i.category}${i.subcategory ? ` - ${i.subcategory}` : ''})`)
       .join('\n');
 
+    const contactLines = [candidateProfile.email, candidateProfile.phone].filter(Boolean).join(' | ');
+
     const coverLetterPrompt = `You are writing a top-tier, persuasive cover letter for an applicant applying to the job post below.
 
 APPLICANT PROFILE:
-- Name: ${candidateProfile.fullName || 'Aala Studio'}
-- Role / Title: ${candidateProfile.roleTitle || 'Senior Product Designer'}
-- Bio & Strengths: ${candidateProfile.bio || 'Product design, design systems, branding, full-stack prototyping.'}
-- Contact Email: ${candidateProfile.email || 'hello@aalastudio.design'}
+- Name: ${candidateProfile.fullName || '[NAME NOT PROVIDED — sign off with just the specialist title below, no placeholder name]'}
+- Professional identity for THIS job: ${specialistTitle}
+- Bio & Strengths: ${candidateProfile.bio || 'Not provided — write generally about relevant design expertise based on the job post and matched case studies below, without inventing specific claims.'}
+${contactLines ? `- Contact: ${contactLines}` : ''}
 
 JOB POST:
 """
@@ -449,7 +467,11 @@ INSTRUCTIONS:
 2. Specifically address the core pain points and requirements mentioned in the job post.
 3. Naturally embed the curated showcase link (${showcaseLink}) in a compelling, single sentence inviting the hiring team or client to review this tailored compilation of work.
 4. Keep the writing polished, authentic, punchy, and confident without corporate fluff or generic buzzwords.
-5. End with the applicant's name (${candidateProfile.fullName}) and contact details.
+5. Sign off with EXACTLY this, and nothing else — do not invent a studio/brand/company name anywhere
+   in the letter or signature:
+   ${candidateProfile.fullName ? candidateProfile.fullName : '[the specialist title below, alone — no name line]'}
+   ${specialistTitle}
+   ${contactLines ? contactLines : '(no contact line — none was provided)'}
 6. Output ONLY the raw cover letter text ready to copy-paste. No preamble, no quotes around the whole text, no markdown backtick wrapper.`;
 
     const coverMessages = [
@@ -467,7 +489,7 @@ INSTRUCTIONS:
     } catch (coverErr) {
       console.warn('Both Groq and Mistral cover letter generation failed, using template fallback:', coverErr.message);
       // Smart fallback template
-      generatedLetter = `Hi ${cleanHeading} Team,\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nAfter reviewing your requirements for this role, I curated a dedicated portfolio showcase featuring our most relevant case studies and deliverables:\n${showcaseLink}\n\nI’d welcome the opportunity to discuss how our background aligns with your upcoming roadmap.\n\nBest regards,\n${candidateProfile.fullName}\n${candidateProfile.email}`;
+      generatedLetter = `Hi ${cleanHeading} Team,\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nAfter reviewing your requirements for this role, I curated a dedicated portfolio showcase featuring our most relevant case studies and deliverables:\n${showcaseLink}\n\nI'd welcome the opportunity to discuss how my background aligns with your upcoming roadmap.\n\nBest regards,\n${[candidateProfile.fullName, specialistTitle, contactLines].filter(Boolean).join('\n')}`;
     }
 
     // Clean up any extraneous markdown wrapper if present
@@ -494,6 +516,8 @@ INSTRUCTIONS:
       showcaseSlug: slug,
       showcaseHeading: cleanHeading,
       clientNameDetected: usingClientName ? clientName : null,
+      specialistTitle,
+      catalogSize: portfolioItems.length,
       matchedItemIds,
       matchedItems: matchedFullItems,
       showcase: newShowcase,

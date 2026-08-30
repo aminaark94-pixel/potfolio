@@ -494,6 +494,9 @@ Key Requirements:
                   </p>
                   <p className="text-[11px] text-slate-400 font-mono mt-1">
                     Generated via {result.provider}
+                    {result.specialistTitle && (
+                      <span> • Signed as: {result.specialistTitle}</span>
+                    )}
                     {result.clientNameDetected && (
                       <span className="text-emerald-600"> • Client name detected: {result.clientNameDetected}</span>
                     )}
@@ -555,6 +558,9 @@ Key Requirements:
                   </h4>
                   <p className="text-xs text-slate-500">
                     Selected by AI matching against the job post ({result.matchingProvider || 'AI matching'}).
+                    {typeof result.catalogSize === 'number' && (
+                      <span> Matched from {result.catalogSize} total catalog items.</span>
+                    )}
                   </p>
                 </div>
               </div>
