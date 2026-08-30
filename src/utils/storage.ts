@@ -1,4 +1,4 @@
-import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle } from '../types/portfolio';
+import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle, PortfolioTemplate } from '../types/portfolio';
 import { initializeCatalog } from '../data/rawPortfolioData';
 import { THEMES } from '../data/themes';
 import { db } from './firebaseClient';
@@ -575,4 +575,50 @@ export async function saveCoverLetterStyleToCloud(style: CoverLetterStyle): Prom
 
 export async function deleteCoverLetterStyleFromCloud(id: string): Promise<void> {
   await deleteDoc(doc(db, 'coverLetterStyles', id));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Portfolio Templates: curated, hand-picked item sets per client
+// vertical (e.g. "Therapy Clinic", "School", "Daycare"), tagged
+// for fast/deterministic matching — used both for quick showcase
+// creation and as a first-pass lookup before AI matching.
+// ─────────────────────────────────────────────────────────────
+
+export async function loadPortfolioTemplatesFromCloud(): Promise<PortfolioTemplate[]> {
+  try {
+    const snap = await getDocs(collection(db, 'portfolioTemplates'));
+    const templates: PortfolioTemplate[] = [];
+    snap.forEach((d) => templates.push(d.data() as PortfolioTemplate));
+    return templates.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  } catch (e) {
+    console.error('Failed to load portfolio templates from Firestore', e);
+    return [];
+  }
+}
+
+export async function savePortfolioTemplateToCloud(template: PortfolioTemplate): Promise<void> {
+  await setDoc(doc(db, 'portfolioTemplates', template.id), stripUndefined(template));
+}
+
+export async function deletePortfolioTemplateFromCloud(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'portfolioTemplates', id));
+}
+
+/** Bulk-updates the category (and optionally subcategory) of custom (uploaded) items. */
+export async function bulkUpdateCustomItemsCategory(
+  items: PortfolioItem[],
+  newCategory: string,
+  newSubcategory?: string
+): Promise<void> {
+  if (items.length === 0) return;
+  const batch = writeBatch(db);
+  items.forEach((item) => {
+    const updated: PortfolioItem = {
+      ...item,
+      category: newCategory,
+      subcategory: newSubcategory || undefined,
+    };
+    batch.set(doc(db, CUSTOM_ITEMS_COLLECTION, item.id), stripUndefined(updated));
+  });
+  await batch.commit();
 }

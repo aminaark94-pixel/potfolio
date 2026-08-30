@@ -110,4 +110,14 @@ export interface CoverLetterGenerationResult {
   showcase: Showcase;
   provider: string;
   matchingProvider?: string;
+  templateUsed?: string | null;
+}
+
+export interface PortfolioTemplate {
+  id: string;
+  name: string;
+  tags: string[];
+  item_ids: string[];
+  createdAt: string;
+  updatedAt: string;
 }

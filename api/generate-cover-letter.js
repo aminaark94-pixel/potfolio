@@ -31,6 +31,40 @@ function slugify(text) {
 }
 
 /**
+ * Checks the job post text against every saved Portfolio Template's tags
+ * (whole-word, case-insensitive match). Returns the best-scoring template
+ * if it has at least 1 matching tag, otherwise null. Templates are
+ * hand-curated by the admin, so a confident match is trusted over AI/local
+ * keyword matching — this is what prevents false positives like a "therapy"
+ * job pulling in an unrelated "love therapy" logo.
+ */
+function findBestTemplateMatch(jobPostText, templates) {
+  if (!Array.isArray(templates) || templates.length === 0) return null;
+  const text = (jobPostText || '').toLowerCase();
+
+  let best = null;
+  let bestScore = 0;
+
+  templates.forEach((template) => {
+    if (!template.tags || template.tags.length === 0) return;
+    let score = 0;
+    template.tags.forEach((tag) => {
+      const cleanTag = String(tag).toLowerCase().trim();
+      if (!cleanTag) return;
+      const escaped = cleanTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordBoundaryRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (wordBoundaryRegex.test(text)) score += 1;
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      best = template;
+    }
+  });
+
+  return bestScore >= 1 ? best : null;
+}
+
+/**
  * Local keyword overlap matching algorithm (fallback / top-up).
  * Returns ids sorted best-first — caller decides how many to keep.
  */
@@ -298,7 +332,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { jobPostText, styleSampleText, styleName, profile, portfolioItems = [] } = req.body || {};
+    const { jobPostText, styleSampleText, styleName, profile, portfolioItems = [], portfolioTemplates = [] } = req.body || {};
 
     if (!jobPostText || typeof jobPostText !== 'string' || jobPostText.trim().length < 10) {
       return res.status(400).json({ error: 'Please provide a valid job post text.' });
@@ -327,6 +361,17 @@ export default async function handler(req, res) {
     let clientName = null; // real client/company name, only if the job post actually names one
     let jobTitle = null;   // the role/position being applied to
     let specialistTitle = null; // e.g. "Top-Rated Graphic & Brand Identity Design Specialist"
+
+    // Check hand-curated Portfolio Templates FIRST — a deterministic, admin-
+    // curated match (e.g. "Therapy Clinic") is trusted over AI/keyword
+    // matching, since it avoids false positives like a psychotherapy job
+    // pulling in an unrelated "love therapy" logo just because both contain
+    // the word "therapy".
+    const matchedTemplate = findBestTemplateMatch(jobPostText, portfolioTemplates);
+    if (matchedTemplate) {
+      const validCatalogIds = new Set(portfolioItems.map(i => i.id));
+      matchedItemIds = matchedTemplate.item_ids.filter(id => validCatalogIds.has(id));
+    }
 
     const matchPrompt = `You are an expert design director and talent matcher for a creative studio.
 Read the job post below carefully and do three things:
@@ -383,7 +428,9 @@ Return ONLY a valid JSON object in this exact format:
     if (matchRaw) {
       try {
         const parsed = JSON.parse(matchRaw);
-        if (Array.isArray(parsed.matched_item_ids) && parsed.matched_item_ids.length > 0) {
+        // Only let the AI set matched_item_ids if a curated template wasn't
+        // already found above — a template match always wins.
+        if (!matchedTemplate && Array.isArray(parsed.matched_item_ids) && parsed.matched_item_ids.length > 0) {
           const validCatalogIds = new Set(portfolioItems.map(i => i.id));
           matchedItemIds = parsed.matched_item_ids.filter(id => validCatalogIds.has(id));
         }
@@ -401,9 +448,11 @@ Return ONLY a valid JSON object in this exact format:
       }
     }
 
-    // Top up with local keyword matching if the AI returned fewer than MIN_ITEMS
-    // (or failed entirely) — never leave the showcase with just 1-2 items.
-    if (matchedItemIds.length < Math.min(MIN_ITEMS, portfolioItems.length)) {
+    // Top up with local keyword matching if the AI/template returned fewer
+    // than MIN_ITEMS (or failed entirely) — never leave the showcase with
+    // just 1-2 items. (Skipped when a template already gave a full, curated
+    // set — topping up would dilute a deliberately hand-picked collection.)
+    if (!matchedTemplate && matchedItemIds.length < Math.min(MIN_ITEMS, portfolioItems.length)) {
       const localRanked = localKeywordMatching(jobPostText, portfolioItems);
       for (const id of localRanked) {
         if (matchedItemIds.length >= MIN_ITEMS) break;
@@ -562,7 +611,10 @@ INSTRUCTIONS:
       matchedItems: matchedFullItems,
       showcase: newShowcase,
       provider: providerLabel,
-      matchingProvider: matchingProviderInfo
+      templateUsed: matchedTemplate ? matchedTemplate.name : null,
+      matchingProvider: matchedTemplate
+        ? `Curated template: "${matchedTemplate.name}"`
+        : matchingProviderInfo
         ? `${matchingProviderInfo.provider} — API key #${matchingProviderInfo.keyIndex} of ${matchingProviderInfo.keyCount}`
         : 'Local keyword matching'
     });

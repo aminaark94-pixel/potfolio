@@ -26,9 +26,16 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
-import { Showcase, PortfolioItem, ThemeId, HeroStyle } from '../types/portfolio';
+import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
 import { THEMES } from '../data/themes';
-import { slugify, generateStandaloneHTML } from '../utils/storage';
+import {
+  slugify,
+  generateStandaloneHTML,
+  loadPortfolioTemplatesFromCloud,
+  savePortfolioTemplateToCloud,
+  deletePortfolioTemplateFromCloud,
+  bulkUpdateCustomItemsCategory,
+} from '../utils/storage';
 import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
 import {
   connectGoogleDriveAccount,
@@ -37,6 +44,7 @@ import {
   DriveScannedFile,
 } from '../utils/googleDrive';
 import { CoverLetterTab } from './CoverLetterTab';
+import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
 import confetti from 'canvas-confetti';
 
 function extractDriveFileId(driveLink: string | null | undefined): string | null {
@@ -87,8 +95,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newTagline, setNewTagline] = useState('A selection of work, put together specifically for you.');
   const [newTheme, setNewTheme] = useState<ThemeId>('rust');
 
-  // Top-level section switcher: Showcases workspace vs Cover Letter generator
-  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter'>('showcases');
+  // Top-level section switcher: Showcases workspace vs Cover Letter generator vs Templates
+  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter' | 'templates'>('showcases');
+
+  // Bulk-select state for the manual catalog picker
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [bulkCategoryValue, setBulkCategoryValue] = useState('');
+  const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
+  const [templateFormName, setTemplateFormName] = useState('');
+  const [templateFormTags, setTemplateFormTags] = useState('');
+  const [portfolioTemplates, setPortfolioTemplates] = useState<PortfolioTemplate[]>([]);
+  const [addToTemplateId, setAddToTemplateId] = useState('');
+  const [bulkActionMessage, setBulkActionMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    loadPortfolioTemplatesFromCloud().then(setPortfolioTemplates);
+  }, []);
+
+  const toggleItemSelected = (id: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedItemIds(new Set());
+
+  const refreshTemplates = async () => {
+    const t = await loadPortfolioTemplatesFromCloud();
+    setPortfolioTemplates(t);
+  };
 
   // Search & Catalog Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -317,6 +356,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           Cover Letter Generator
         </button>
+        <button
+          onClick={() => setActiveSection('templates')}
+          className={`px-4 py-2 rounded-xl text-xs font-space-grotesk font-bold transition-all cursor-pointer ${
+            activeSection === 'templates'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Portfolio Templates
+        </button>
       </div>
 
       {activeSection === 'coverletter' && (
@@ -326,6 +375,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             onSelectShowcase(slug);
             setActiveSection('showcases');
             onOpenClientView();
+          }}
+        />
+      )}
+
+      {activeSection === 'templates' && (
+        <PortfolioTemplatesLibrary
+          templates={portfolioTemplates}
+          allItems={allItems}
+          onRefresh={refreshTemplates}
+          onCreateShowcase={(showcase) => {
+            onCreateShowcase(showcase);
+            setActiveSection('showcases');
           }}
         />
       )}
@@ -899,9 +960,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* Pagination & Count Header */}
         <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-          <span>
-            Showing {paginatedItems.length} of {filteredCatalog.length} matching works (Page {currentPage} of {totalPages})
-          </span>
+          <div className="flex items-center gap-3">
+            <span>
+              Showing {paginatedItems.length} of {filteredCatalog.length} matching works (Page {currentPage} of {totalPages})
+            </span>
+            <button
+              onClick={() => {
+                const allFilteredIds = filteredCatalog.map((i) => i.id);
+                const allSelected = allFilteredIds.every((id) => selectedItemIds.has(id));
+                setSelectedItemIds(allSelected ? new Set() : new Set(allFilteredIds));
+              }}
+              className="text-indigo-600 hover:text-indigo-800 font-space-grotesk font-bold cursor-pointer"
+            >
+              {filteredCatalog.length > 0 && filteredCatalog.every((i) => selectedItemIds.has(i.id))
+                ? `Deselect all ${filteredCatalog.length}`
+                : `Select all ${filteredCatalog.length} (filtered)`}
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             <span>Per page:</span>
@@ -921,6 +996,156 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         </div>
 
+        {/* Bulk Actions Bar — shown only when items are selected */}
+        {selectedItemIds.size > 0 && (
+          <div className="sticky top-2 z-30 flex flex-wrap items-center gap-2.5 p-3.5 rounded-2xl bg-slate-900 text-white shadow-xl">
+            <span className="font-space-grotesk font-bold text-xs px-2">
+              {selectedItemIds.size} selected
+            </span>
+
+            <button
+              onClick={() => {
+                if (!currentShowcase) return;
+                const set = new Set([...currentShowcase.item_ids, ...Array.from(selectedItemIds)]);
+                onUpdateShowcase({ ...currentShowcase, item_ids: Array.from(set), updatedAt: new Date().toISOString() });
+                confetti({ particleCount: 40, spread: 40 });
+                clearSelection();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-space-grotesk font-bold cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add to Showcase
+            </button>
+
+            <button
+              onClick={() => setIsBulkAssigning((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+            >
+              <Folder className="w-3.5 h-3.5" /> Move to Category
+            </button>
+
+            <button
+              onClick={() => setIsSavingAsTemplate((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5" /> Save as Template
+            </button>
+
+            <button
+              onClick={clearSelection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer ml-auto"
+            >
+              <X className="w-3.5 h-3.5" /> Clear
+            </button>
+
+            {isBulkAssigning && (
+              <div className="w-full flex items-center gap-2 pt-2 border-t border-white/10 mt-1">
+                <input
+                  value={bulkCategoryValue}
+                  onChange={(e) => setBulkCategoryValue(e.target.value)}
+                  placeholder="New category name (e.g. Social Media)"
+                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
+                />
+                <button
+                  onClick={async () => {
+                    if (!bulkCategoryValue.trim()) return;
+                    const itemsToUpdate = allItems.filter((i) => selectedItemIds.has(i.id) && i.custom);
+                    await bulkUpdateCustomItemsCategory(itemsToUpdate, bulkCategoryValue.trim());
+                    setBulkActionMessage(`Moved ${itemsToUpdate.length} custom items to "${bulkCategoryValue.trim()}". Refresh to see changes reflected everywhere.`);
+                    setIsBulkAssigning(false);
+                    setBulkCategoryValue('');
+                    clearSelection();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold cursor-pointer shrink-0"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+
+            {isSavingAsTemplate && (
+              <div className="w-full space-y-2 pt-2 border-t border-white/10 mt-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={templateFormName}
+                    onChange={(e) => setTemplateFormName(e.target.value)}
+                    placeholder="Template name (e.g. Therapy Clinic)"
+                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
+                  />
+                  <input
+                    value={templateFormTags}
+                    onChange={(e) => setTemplateFormTags(e.target.value)}
+                    placeholder="tags, comma, separated (therapy, clinic, wellness)"
+                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!templateFormName.trim()) return;
+                      await savePortfolioTemplateToCloud({
+                        id: `template-${Date.now()}`,
+                        name: templateFormName.trim(),
+                        tags: templateFormTags.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+                        item_ids: Array.from(selectedItemIds),
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                      });
+                      await refreshTemplates();
+                      setBulkActionMessage(`Saved template "${templateFormName.trim()}" with ${selectedItemIds.size} items.`);
+                      setIsSavingAsTemplate(false);
+                      setTemplateFormName('');
+                      setTemplateFormTags('');
+                      clearSelection();
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold cursor-pointer shrink-0"
+                  >
+                    Save
+                  </button>
+                </div>
+
+                {portfolioTemplates.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={addToTemplateId}
+                      onChange={(e) => setAddToTemplateId(e.target.value)}
+                      className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    >
+                      <option value="" className="bg-slate-900">— or add to existing template —</option>
+                      {portfolioTemplates.map((t) => (
+                        <option key={t.id} value={t.id} className="bg-slate-900">{t.name} ({t.item_ids.length} items)</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={async () => {
+                        const target = portfolioTemplates.find((t) => t.id === addToTemplateId);
+                        if (!target) return;
+                        const merged = Array.from(new Set([...target.item_ids, ...Array.from(selectedItemIds)]));
+                        await savePortfolioTemplateToCloud({ ...target, item_ids: merged, updatedAt: new Date().toISOString() });
+                        await refreshTemplates();
+                        setBulkActionMessage(`Added ${selectedItemIds.size} items to "${target.name}".`);
+                        setIsSavingAsTemplate(false);
+                        setAddToTemplateId('');
+                        clearSelection();
+                      }}
+                      disabled={!addToTemplateId}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-xs font-bold cursor-pointer shrink-0"
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {bulkActionMessage && (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-space-grotesk font-semibold">
+            <span>{bulkActionMessage}</span>
+            <button onClick={() => setBulkActionMessage(null)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Catalog Items Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {paginatedItems.map((item) => {
@@ -930,11 +1155,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div
                 key={item.id}
                 className={`group relative rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col bg-white ${
-                  inShowcase
+                  selectedItemIds.has(item.id)
+                    ? 'border-emerald-500 ring-2 ring-emerald-500/30 shadow-md shadow-emerald-100'
+                    : inShowcase
                     ? 'border-indigo-600 ring-2 ring-indigo-500/30 shadow-md shadow-indigo-100'
                     : 'border-slate-200 hover:border-indigo-300 hover:shadow-lg'
                 }`}
               >
+                {/* Bulk-select checkbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleItemSelected(item.id);
+                  }}
+                  className={`absolute top-2.5 left-2.5 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer border-2 ${
+                    selectedItemIds.has(item.id)
+                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : 'bg-white/90 border-white/90 text-transparent hover:border-emerald-400'
+                  }`}
+                  title="Select for bulk actions"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+
                 {/* Media Thumbnail */}
                 <div 
                   onClick={() => onOpenLightbox(item)}
@@ -948,7 +1191,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
 
                   {/* Format tag */}
-                  <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-md text-[10px] font-mono text-white border border-white/10">
+                  <span className="absolute top-2.5 left-9 px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-md text-[10px] font-mono text-white border border-white/10">
                     {item.category}
                   </span>
 

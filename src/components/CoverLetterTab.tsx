@@ -26,7 +26,8 @@ import {
   Showcase, 
   UserProfile, 
   CoverLetterStyle, 
-  CoverLetterGenerationResult 
+  CoverLetterGenerationResult,
+  PortfolioTemplate
 } from '../types/portfolio';
 import { 
   saveProfileToCloud, 
@@ -34,6 +35,7 @@ import {
   loadCoverLetterStylesFromCloud, 
   saveCoverLetterStyleToCloud, 
   deleteCoverLetterStyleFromCloud,
+  loadPortfolioTemplatesFromCloud,
   saveShowcaseToCloud,
   getAllPortfolioItems
 } from '../utils/storage';
@@ -70,6 +72,9 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
   });
   const [previewStyle, setPreviewStyle] = useState<CoverLetterStyle | null>(null);
 
+  // 2b. Portfolio Templates (curated item sets per client vertical, e.g. "Therapy Clinic")
+  const [portfolioTemplates, setPortfolioTemplates] = useState<PortfolioTemplate[]>([]);
+
   // 3. Generator State
   const [jobPostText, setJobPostText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -93,6 +98,9 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
           const defaultStyle = loadedStyles.find(s => s.isDefault) || loadedStyles[0];
           setSelectedStyleId(defaultStyle.id);
         }
+
+        const loadedTemplates = await loadPortfolioTemplatesFromCloud();
+        setPortfolioTemplates(loadedTemplates);
       } catch (err) {
         console.error('Failed to load initial cover letter data', err);
       }
@@ -191,7 +199,8 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
           styleName: selectedStyle?.name,
           styleSampleText: selectedStyle?.sampleText,
           profile,
-          portfolioItems: allItems
+          portfolioItems: allItems,
+          portfolioTemplates
         })
       });
 
@@ -557,9 +566,17 @@ Key Requirements:
                     Matched Portfolio Work ({result.matchedItems.length} items)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Selected by AI matching against the job post ({result.matchingProvider || 'AI matching'}).
-                    {typeof result.catalogSize === 'number' && (
-                      <span> Matched from {result.catalogSize} total catalog items.</span>
+                    {result.templateUsed ? (
+                      <span className="text-emerald-600 font-semibold">
+                        ✓ Used your curated "{result.templateUsed}" template — no AI guessing.
+                      </span>
+                    ) : (
+                      <>
+                        Selected by AI matching against the job post ({result.matchingProvider || 'AI matching'}).
+                        {typeof result.catalogSize === 'number' && (
+                          <span> Matched from {result.catalogSize} total catalog items.</span>
+                        )}
+                      </>
                     )}
                   </p>
                 </div>
