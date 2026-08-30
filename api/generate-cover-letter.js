@@ -204,6 +204,44 @@ async function callAI(messages, jsonMode = false, timeoutMs = 6500) {
 }
 
 /**
+ * Deterministically inserts the fixed portfolio-link intro line + the raw
+ * showcase URL right before the sign-off, regardless of what the AI wrote.
+ * This guarantees the link always appears exactly once, plain (no markdown
+ * brackets), with the same intro line every time — never left to the AI.
+ */
+function insertShowcaseLinkBlock(letterText, showcaseLink, specialistTitle, fullName) {
+  const FIXED_INTRO_LINE = '𝗣𝗹𝗲𝗮𝘀𝗲 𝘁𝗮𝗸𝗲 𝗮 𝗺𝗼𝗺𝗲𝗻𝘁 𝘁𝗼 𝗲𝘅𝗽𝗹𝗼𝗿𝗲 𝗺𝘆 𝗽𝗮𝘀𝘁 𝗰𝗼𝗺𝗽𝗹𝗲𝘁𝗲𝗱 𝗽𝗿𝗼𝗷𝗲𝗰𝘁𝘀 𝗯𝗲𝗹𝗼𝘄:';
+  const linkBlock = `${FIXED_INTRO_LINE}\n${showcaseLink}`;
+
+  // Defensively strip out any link/markdown the AI might have added anyway,
+  // and any duplicate mangled markdown like [text](url](url))
+  const escapedUrl = showcaseLink.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let cleaned = letterText
+    .replace(new RegExp(`\\[([^\\]]*)\\]\\(\\s*${escapedUrl}[^)]*\\)+`, 'g'), '')
+    .replace(new RegExp(escapedUrl, 'g'), '')
+    .replace(/\[\s*\]\(\s*\)/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
+
+  // Find where the sign-off starts (specialistTitle is always present, fullName may not be)
+  const anchorText = (fullName && cleaned.includes(fullName)) ? fullName : specialistTitle;
+  let insertIndex = cleaned.length;
+  if (anchorText) {
+    const idx = cleaned.indexOf(anchorText);
+    if (idx !== -1) {
+      const before = cleaned.slice(0, idx);
+      const blankIdx = before.lastIndexOf('\n\n');
+      insertIndex = blankIdx !== -1 ? blankIdx : idx;
+    }
+  }
+
+  const head = cleaned.slice(0, insertIndex).replace(/\s+$/, '');
+  const tail = cleaned.slice(insertIndex).replace(/^\s+/, '');
+
+  return tail ? `${head}\n\n${linkBlock}\n\n${tail}` : `${head}\n\n${linkBlock}`;
+}
+
+/**
  * Extract company name or role title guess from job post text
  */
 function extractOpportunityDetails(jobPostText) {
@@ -448,10 +486,7 @@ JOB POST:
 ${jobPostText}
 """
 
-CURATED SHOWCASE LINK (YOU MUST EMBED THIS NATURALLY):
-${showcaseLink}
-
-FEATURED MATCHED CASE STUDIES INCLUDED IN THE SHOWCASE:
+FEATURED MATCHED CASE STUDIES INCLUDED IN THE SHOWCASE (for context only — do not link or mention the URL, see instructions below):
 ${matchedProjectNames}
 
 STYLE REFERENCE — YOU MUST CLOSELY MIRROR THIS, NOT JUST ITS TONE:
@@ -460,19 +495,25 @@ ${styleSampleText || `Hi Team,\n\nI saw your opening and immediately recognized 
 """
 
 INSTRUCTIONS:
-1. Treat the style reference above (${styleName || 'Custom Style'}) as a strict template: match its
-   opening line style, paragraph count, paragraph length, sentence rhythm, sign-off format, and
+1. Open with a short, casual, human-sounding greeting: start with "Hi," on its own, then ONE short,
+   natural question about their project — the kind a real freelancer would casually ask, NOT a long
+   formal multi-clause question. Keep it to one short sentence, conversational, not corporate.
+2. Treat the style reference above (${styleName || 'Custom Style'}) as a strict template for everything
+   AFTER the opening greeting: match its paragraph count, paragraph length, sentence rhythm, and
    overall structure as closely as possible. Only change the actual content (names, projects,
    requirements) — do not deviate from its format or invent a different structure.
-2. Specifically address the core pain points and requirements mentioned in the job post.
-3. Naturally embed the curated showcase link (${showcaseLink}) in a compelling, single sentence inviting the hiring team or client to review this tailored compilation of work.
-4. Keep the writing polished, authentic, punchy, and confident without corporate fluff or generic buzzwords.
-5. Sign off with EXACTLY this, and nothing else — do not invent a studio/brand/company name anywhere
+3. Specifically address the core pain points and requirements mentioned in the job post.
+4. Do NOT mention, embed, or link to the showcase/portfolio anywhere in your text. Do NOT write any
+   URL or markdown link syntax like [text](url). A portfolio link section will be inserted
+   automatically after your text by the system — just end your letter's body content naturally,
+   as if leading into a sign-off next (no "please find my portfolio below" sentence needed either).
+5. Keep the writing polished, authentic, punchy, and confident without corporate fluff or generic buzzwords.
+6. Sign off with EXACTLY this, and nothing else — do not invent a studio/brand/company name anywhere
    in the letter or signature:
    ${candidateProfile.fullName ? candidateProfile.fullName : '[the specialist title below, alone — no name line]'}
    ${specialistTitle}
    ${contactLines ? contactLines : '(no contact line — none was provided)'}
-6. Output ONLY the raw cover letter text ready to copy-paste. No preamble, no quotes around the whole text, no markdown backtick wrapper.`;
+7. Output ONLY the raw cover letter text ready to copy-paste. No preamble, no quotes around the whole text, no markdown backtick wrapper.`;
 
     const coverMessages = [
       { role: "system", content: "You are an elite creative director and professional copywriter. You strictly mirror the structure of any style reference you are given." },
@@ -489,7 +530,7 @@ INSTRUCTIONS:
     } catch (coverErr) {
       console.warn('Both Groq and Mistral cover letter generation failed, using template fallback:', coverErr.message);
       // Smart fallback template
-      generatedLetter = `Hi ${cleanHeading} Team,\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nAfter reviewing your requirements for this role, I curated a dedicated portfolio showcase featuring our most relevant case studies and deliverables:\n${showcaseLink}\n\nI'd welcome the opportunity to discuss how my background aligns with your upcoming roadmap.\n\nBest regards,\n${[candidateProfile.fullName, specialistTitle, contactLines].filter(Boolean).join('\n')}`;
+      generatedLetter = `Hi,\n\nQuick question — are you still looking for someone to bring a fresh, polished visual direction to this project, or do you already have a strong direction in mind?\n\nI came across your opening and immediately wanted to reach out. With a deep background spanning product design, brand systems, and creative technology, I specialize in translating complex product visions into high-impact, beautifully crafted digital experiences.\n\nI'd welcome the opportunity to discuss how my background aligns with your upcoming roadmap.\n\nBest regards,\n${[candidateProfile.fullName, specialistTitle, contactLines].filter(Boolean).join('\n')}`;
     }
 
     // Clean up any extraneous markdown wrapper if present
@@ -498,10 +539,9 @@ INSTRUCTIONS:
       .replace(/\n?```$/, '')
       .trim();
 
-    // Ensure the showcase link is present in the cover letter
-    if (!generatedLetter.includes(showcaseLink)) {
-      generatedLetter += `\n\nYou can explore a curated portfolio showcase of relevant past projects here:\n${showcaseLink}`;
-    }
+    // Deterministically insert the fixed intro line + raw link right before
+    // the sign-off — never left to the AI, so formatting is identical every time.
+    generatedLetter = insertShowcaseLinkBlock(generatedLetter, showcaseLink, specialistTitle, candidateProfile.fullName);
 
     const matchedFullItems = portfolioItems.filter(i => matchedItemIds.includes(i.id));
 
