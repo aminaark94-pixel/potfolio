@@ -85,6 +85,7 @@ export interface UserProfile {
   email: string;
   phone?: string;
   location?: string;
+  website?: string;
 }
 
 export interface CoverLetterStyle {

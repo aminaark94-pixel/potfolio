@@ -637,28 +637,26 @@ Key Requirements:
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 font-space-grotesk">
-                Full Name / Studio Name <span className="text-rose-500">*</span>
+                Full Name / Studio Name
               </label>
               <input
                 type="text"
                 value={profile.fullName}
                 onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
                 placeholder="e.g. Aala Studio / Sarah Chen"
-                required
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 focus:bg-white transition-all font-medium"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 font-space-grotesk">
-                Role / Title <span className="text-rose-500">*</span>
+                Role / Title
               </label>
               <input
                 type="text"
                 value={profile.roleTitle}
                 onChange={(e) => setProfile({ ...profile, roleTitle: e.target.value })}
                 placeholder="e.g. Senior Product Designer & Creative Technologist"
-                required
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 focus:bg-white transition-all font-medium"
               />
             </div>
@@ -667,14 +665,13 @@ Key Requirements:
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 font-space-grotesk">
-                Contact Email <span className="text-rose-500">*</span>
+                Contact Email
               </label>
               <input
                 type="email"
                 value={profile.email}
                 onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                 placeholder="e.g. hello@aalastudio.design"
-                required
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 focus:bg-white transition-all font-medium"
               />
             </div>
@@ -695,14 +692,13 @@ Key Requirements:
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 font-space-grotesk">
-              Short Bio & Skills Summary (Core Value Proposition) <span className="text-rose-500">*</span>
+              Short Bio & Skills Summary (Core Value Proposition)
             </label>
             <textarea
               rows={4}
               value={profile.bio}
               onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
               placeholder="Highlight your key achievements, years of experience, core design toolkit (Figma, React, Motion), and specializations..."
-              required
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 focus:bg-white transition-all font-normal"
             />
           </div>
