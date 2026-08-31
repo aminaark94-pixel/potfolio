@@ -25,6 +25,19 @@ export function detectMediaType(filename: string | null, driveUrl: string | null
   return 'image';
 }
 
+// Google Drive share links (.../view?usp=...) are HTML viewer pages, not raw
+// video files — a browser <video src="..."> tag cannot play them directly.
+// Drive's own embeddable "preview" URL streams correctly via <iframe> for
+// any file size, so we use that for video playback instead.
+export function getDriveVideoEmbed(driveUrl: string | null): string | null {
+  if (!driveUrl) return null;
+  const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/file/d/${match[1]}/preview`;
+  }
+  return driveUrl;
+}
+
 // Initial Raw Categories and Items from Studio Dataset
 export const INITIAL_ITEMS_RAW: Array<{
   name: string;

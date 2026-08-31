@@ -38,6 +38,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'gif' | 'pdf'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(36);
@@ -54,10 +55,22 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
     return ['All', ...Object.keys(categoryCounts).filter((k) => k !== 'All').sort()];
   }, [categoryCounts]);
 
+  // Subcategories that exist within the currently selected category, e.g.
+  // "Logos & Monograms" -> Car, Dental, Gym... Resets when category changes.
+  const subcategories = useMemo(() => {
+    if (selectedCategory === 'All') return [];
+    const set = new Set<string>();
+    items.forEach((i) => {
+      if (i.category === selectedCategory && i.subcategory) set.add(i.subcategory);
+    });
+    return Array.from(set).sort();
+  }, [items, selectedCategory]);
+
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return items.filter((item) => {
       const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchSubcat = selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
       const matchMedia = mediaFilter === 'all' || item.mediaType === mediaFilter;
       const matchQuery =
         !q ||
@@ -65,9 +78,9 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
         item.category.toLowerCase().includes(q) ||
         item.keywords.some((kw) => kw.toLowerCase().includes(q));
 
-      return matchCat && matchMedia && matchQuery;
+      return matchCat && matchSubcat && matchMedia && matchQuery;
     });
-  }, [items, searchQuery, selectedCategory, mediaFilter]);
+  }, [items, searchQuery, selectedCategory, selectedSubcategory, mediaFilter]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize) || 1;
   const paginatedItems = useMemo(() => {
@@ -142,6 +155,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
             value={selectedCategory}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
+              setSelectedSubcategory('All');
               setCurrentPage(1);
             }}
             className="w-full bg-[#121217] border border-white/10 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white font-space-grotesk focus:outline-none focus:border-[#C1502E]"
@@ -179,6 +193,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
             key={cat}
             onClick={() => {
               setSelectedCategory(cat);
+              setSelectedSubcategory('All');
               setCurrentPage(1);
             }}
             className={`px-3 py-1.5 rounded-full text-xs font-space-grotesk font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
@@ -191,6 +206,29 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
           </button>
         ))}
       </div>
+
+      {/* Subcategory Pills — only shown once a category with subcategories is selected */}
+      {subcategories.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none pl-2">
+          <span className="text-[10px] font-space-mono text-white/40 shrink-0">Type:</span>
+          {['All', ...subcategories].map((sub) => (
+            <button
+              key={sub}
+              onClick={() => {
+                setSelectedSubcategory(sub);
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-space-grotesk font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                selectedSubcategory === sub
+                  ? 'bg-[#C1502E] text-white font-bold'
+                  : 'bg-white/5 hover:bg-white/10 text-white/60 border border-white/10'
+              }`}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Grid Header */}
       <div className="flex items-center justify-between text-xs font-mono text-white/50">

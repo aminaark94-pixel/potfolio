@@ -14,6 +14,7 @@ import {
   Folder
 } from 'lucide-react';
 import { PortfolioItem, ThemeConfig } from '../types/portfolio';
+import { getDriveVideoEmbed } from '../data/rawPortfolioData';
 
 interface LightboxModalProps {
   item: PortfolioItem | null;
@@ -183,11 +184,12 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           {/* Main Media Viewer */}
           <div className="relative w-full flex items-center justify-center overflow-auto max-h-[72vh] rounded-3xl bg-slate-950/80 border border-white/15 p-2 sm:p-4 shadow-2xl">
             {item.mediaType === 'video' ? (
-              <video
-                src={item.drive_link || ''}
-                controls
-                autoPlay
-                className="max-h-[68vh] max-w-full rounded-2xl object-contain shadow-2xl"
+              <iframe
+                src={getDriveVideoEmbed(item.drive_link) || ''}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
+                title={item.name}
               />
             ) : (
               <img

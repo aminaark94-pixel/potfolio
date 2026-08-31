@@ -306,16 +306,24 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       {/* Hero Presentation Slab */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
         <div className="relative shine-sweep max-w-4xl rounded-[2rem] glass-surface-strong px-6 py-8 sm:px-10 sm:py-12 overflow-hidden">
-          <div className="relative z-10 space-y-4">
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-space-mono uppercase font-bold tracking-wider glass-chip glass-text-secondary"
-            >
-              <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accentSoft }} />
-              <span>Curated Portfolio Showcase</span>
-            </motion.div>
+          <div className="relative z-10 space-y-5">
+            <div className="flex items-center gap-4">
+              <img
+                src={founderPhoto}
+                alt="Aala Studio"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shadow-xl border-2 glass-hairline shrink-0"
+                style={{ borderColor: theme.accentSoft }}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-space-mono uppercase font-bold tracking-wider glass-chip glass-text-secondary"
+              >
+                <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accentSoft }} />
+                <span>Curated Portfolio Showcase</span>
+              </motion.div>
+            </div>
 
             <motion.h1
               initial={{ opacity: 0, y: 20 }}

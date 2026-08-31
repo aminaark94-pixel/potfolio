@@ -6,6 +6,7 @@ import { saveCustomItemsToCloud } from '../utils/storage';
 
 interface DriveLinksTabProps {
   onItemsAdded: (items: PortfolioItem[]) => void;
+  existingCategories: string[];
 }
 
 interface DraftRow {
@@ -13,6 +14,7 @@ interface DraftRow {
   title: string;
   driveUrl: string;
   category: string;
+  subcategory: string;
 }
 
 const newRow = (): DraftRow => ({
@@ -20,14 +22,45 @@ const newRow = (): DraftRow => ({
   title: '',
   driveUrl: '',
   category: '',
+  subcategory: '',
 });
 
-export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) => {
+export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, existingCategories }) => {
   const [rows, setRows] = useState<DraftRow[]>([newRow()]);
   const [defaultCategory, setDefaultCategory] = useState('Branding');
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [bulkPasteText, setBulkPasteText] = useState('');
+
+  const handleBulkParse = () => {
+    // Splits on commas, newlines, and whitespace — matches whatever format
+    // was copied from Drive (multi-select share links, a pasted list, etc).
+    const urlPattern = /https?:\/\/\S+/g;
+    const found = bulkPasteText.match(urlPattern);
+    if (!found || found.length === 0) {
+      setErrorMessage('No links found in the pasted text. Paste one or more Drive links, separated by commas or new lines.');
+      return;
+    }
+
+    const cleaned = found.map((u) => u.replace(/[),.]+$/, ''));
+    const existingCount = rows.filter((r) => r.driveUrl.trim()).length;
+
+    const newRows: DraftRow[] = cleaned.map((url, idx) => ({
+      id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+      title: `Untitled Item ${existingCount + idx + 1}`,
+      driveUrl: url,
+      category: '',
+    }));
+
+    setRows((prev) => {
+      const nonEmpty = prev.filter((r) => r.driveUrl.trim() || r.title.trim());
+      return [...nonEmpty, ...newRows];
+    });
+    setBulkPasteText('');
+    setErrorMessage(null);
+    setSuccessMessage(`Parsed ${newRows.length} link${newRows.length > 1 ? 's' : ''} into rows below — rename the titles, then click "Add to Portfolio".`);
+  };
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -54,6 +87,7 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) =>
     try {
       const newItems: PortfolioItem[] = validRows.map((row) => {
         const category = row.category.trim() || defaultCategory.trim() || 'Uncategorized';
+        const subcategory = row.subcategory.trim() || undefined;
         const thumb = getDriveThumb(row.driveUrl.trim(), 800);
         const thumbSmall = getDriveThumb(row.driveUrl.trim(), 400);
         const thumbLarge = getDriveThumb(row.driveUrl.trim(), 1400);
@@ -63,13 +97,14 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) =>
           id: `drive-link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           name: row.title.trim(),
           category,
+          subcategory,
           drive_link: row.driveUrl.trim(),
           behance_link: null,
           thumb,
           thumb_small: thumbSmall,
           thumb_large: thumbLarge,
           mediaType,
-          keywords: [category.toLowerCase()],
+          keywords: [category.toLowerCase(), ...(subcategory ? [subcategory.toLowerCase()] : [])],
           custom: true,
         };
       });
@@ -102,6 +137,29 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) =>
         </div>
       </div>
 
+      <div className="p-6 rounded-3xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 space-y-3">
+        <label className="text-xs font-bold uppercase tracking-widest text-indigo-500 font-space-grotesk flex items-center gap-1.5">
+          <Link2 className="w-3.5 h-3.5" /> Bulk Paste (paste many links at once)
+        </label>
+        <textarea
+          value={bulkPasteText}
+          onChange={(e) => setBulkPasteText(e.target.value)}
+          placeholder={'Paste multiple Drive links here — comma separated, one per line, or however you copied them:\nhttps://drive.google.com/file/d/AAA.../view, https://drive.google.com/file/d/BBB.../view'}
+          rows={5}
+          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-2xl text-sm text-slate-900 font-mono focus:outline-none focus:border-indigo-500 resize-y"
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-slate-500">Titles are auto-filled as "Untitled Item 1, 2..." — rename them in the rows below.</p>
+          <button
+            onClick={handleBulkParse}
+            disabled={!bulkPasteText.trim()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-space-grotesk font-bold cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" /> Parse Links Into Rows
+          </button>
+        </div>
+      </div>
+
       <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
         <div className="flex items-center justify-between gap-4">
           <label className="text-xs font-bold uppercase tracking-widest text-slate-400 font-space-grotesk">
@@ -109,16 +167,22 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) =>
           </label>
           <input
             type="text"
+            list="existing-categories-list"
             value={defaultCategory}
             onChange={(e) => setDefaultCategory(e.target.value)}
             placeholder="e.g. Branding"
             className="w-56 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
           />
+          <datalist id="existing-categories-list">
+            {existingCategories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
 
         <div className="space-y-3">
           {rows.map((row, idx) => (
-            <div key={row.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_140px_auto] gap-2 items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <div key={row.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_120px_110px_auto] gap-2 items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <input
                 type="text"
                 value={row.title}
@@ -135,9 +199,17 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded }) =>
               />
               <input
                 type="text"
+                list="existing-categories-list"
                 value={row.category}
                 onChange={(e) => updateRow(row.id, { category: e.target.value })}
-                placeholder="Category (optional)"
+                placeholder="Category"
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
+              />
+              <input
+                type="text"
+                value={row.subcategory}
+                onChange={(e) => updateRow(row.id, { subcategory: e.target.value })}
+                placeholder="Subcategory (e.g. Car)"
                 className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
               />
               <button

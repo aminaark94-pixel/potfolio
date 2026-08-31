@@ -103,6 +103,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
+  const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
   const [templateFormTags, setTemplateFormTags] = useState('');
@@ -133,6 +134,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Search & Catalog Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'gif' | 'pdf'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(24);
@@ -212,11 +214,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return ['All', ...Object.keys(categoryCounts).filter((k) => k !== 'All').sort()];
   }, [categoryCounts]);
 
+  // Subcategories within the currently selected category (e.g. Logos & Monograms -> Car, Dental...)
+  const subcategories = useMemo(() => {
+    if (selectedCategory === 'All') return [];
+    const set = new Set<string>();
+    allItems.forEach((i) => {
+      if (i.category === selectedCategory && i.subcategory) set.add(i.subcategory);
+    });
+    return Array.from(set).sort();
+  }, [allItems, selectedCategory]);
+
   // Filtered Catalog Items
   const filteredCatalog = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return allItems.filter((item) => {
       const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchSubcat = selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
       const matchMedia = mediaFilter === 'all' || item.mediaType === mediaFilter;
       const matchQuery =
         !q ||
@@ -224,9 +237,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         item.category.toLowerCase().includes(q) ||
         item.keywords.some((kw) => kw.toLowerCase().includes(q));
 
-      return matchCat && matchMedia && matchQuery;
+      return matchCat && matchSubcat && matchMedia && matchQuery;
     });
-  }, [allItems, searchQuery, selectedCategory, mediaFilter]);
+  }, [allItems, searchQuery, selectedCategory, selectedSubcategory, mediaFilter]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredCatalog.length / pageSize) || 1;
@@ -384,6 +397,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onItemsAdded={(items) => {
             onBulkAddItems(items);
           }}
+          existingCategories={Array.from(new Set(allItems.map((i) => i.category))).sort()}
         />
       )}
 
@@ -926,6 +940,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               value={selectedCategory}
               onChange={(e) => {
                 setSelectedCategory(e.target.value);
+                setSelectedSubcategory('All');
                 setCurrentPage(1);
               }}
               className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm text-slate-800 font-space-grotesk font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm cursor-pointer"
@@ -964,6 +979,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               key={cat}
               onClick={() => {
                 setSelectedCategory(cat);
+                setSelectedSubcategory('All');
                 setCurrentPage(1);
               }}
               className={`px-3 py-1.5 rounded-full text-xs font-space-grotesk font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
@@ -976,6 +992,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
           ))}
         </div>
+
+        {/* Subcategory Pills — appears once a category with subcategories is active */}
+        {subcategories.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 pl-1">
+            <span className="text-[10px] font-space-mono text-slate-400 shrink-0">Type:</span>
+            {['All', ...subcategories].map((sub) => (
+              <button
+                key={sub}
+                onClick={() => {
+                  setSelectedSubcategory(sub);
+                  setCurrentPage(1);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-space-grotesk font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                  selectedSubcategory === sub
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                }`}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Pagination & Count Header */}
         <div className="flex items-center justify-between text-xs font-mono text-slate-500">
@@ -1061,17 +1100,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <input
                   value={bulkCategoryValue}
                   onChange={(e) => setBulkCategoryValue(e.target.value)}
-                  placeholder="New category name (e.g. Social Media)"
+                  placeholder="Category (e.g. Logos & Monograms)"
+                  list="admin-existing-categories-list"
+                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
+                />
+                <datalist id="admin-existing-categories-list">
+                  {Array.from(new Set(allItems.map((i) => i.category))).sort().map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+                <input
+                  value={bulkSubcategoryValue}
+                  onChange={(e) => setBulkSubcategoryValue(e.target.value)}
+                  placeholder="Subcategory, optional (e.g. Car)"
                   className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
                 />
                 <button
                   onClick={async () => {
                     if (!bulkCategoryValue.trim()) return;
                     const itemsToUpdate = allItems.filter((i) => selectedItemIds.has(i.id) && i.custom);
-                    await bulkUpdateCustomItemsCategory(itemsToUpdate, bulkCategoryValue.trim());
-                    setBulkActionMessage(`Moved ${itemsToUpdate.length} custom items to "${bulkCategoryValue.trim()}". Refresh to see changes reflected everywhere.`);
+                    await bulkUpdateCustomItemsCategory(itemsToUpdate, bulkCategoryValue.trim(), bulkSubcategoryValue.trim() || undefined);
+                    setBulkActionMessage(`Moved ${itemsToUpdate.length} custom items to "${bulkCategoryValue.trim()}"${bulkSubcategoryValue.trim() ? ` / "${bulkSubcategoryValue.trim()}"` : ''}. Refresh to see changes reflected everywhere.`);
                     setIsBulkAssigning(false);
                     setBulkCategoryValue('');
+                    setBulkSubcategoryValue('');
                     clearSelection();
                   }}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold cursor-pointer shrink-0"
