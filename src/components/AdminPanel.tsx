@@ -397,6 +397,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onItemsAdded={(items) => {
             onBulkAddItems(items);
           }}
+          onItemsAddedToShowcase={(items) => {
+            onBulkAddItems(items);
+            if (currentShowcase) {
+              onUpdateShowcase({
+                ...currentShowcase,
+                item_ids: [...items.map((i) => i.id), ...currentShowcase.item_ids],
+              });
+            }
+          }}
+          activeShowcaseName={currentShowcase?.heading}
           existingCategories={Array.from(new Set(allItems.map((i) => i.category))).sort()}
         />
       )}

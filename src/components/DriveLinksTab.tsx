@@ -6,6 +6,8 @@ import { saveCustomItemsToCloud } from '../utils/storage';
 
 interface DriveLinksTabProps {
   onItemsAdded: (items: PortfolioItem[]) => void;
+  onItemsAddedToShowcase: (items: PortfolioItem[]) => void;
+  activeShowcaseName?: string;
   existingCategories: string[];
 }
 
@@ -25,7 +27,12 @@ const newRow = (): DraftRow => ({
   subcategory: '',
 });
 
-export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, existingCategories }) => {
+export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({
+  onItemsAdded,
+  onItemsAddedToShowcase,
+  activeShowcaseName,
+  existingCategories
+}) => {
   const [rows, setRows] = useState<DraftRow[]>([newRow()]);
   const [defaultCategory, setDefaultCategory] = useState('Branding');
   const [isSaving, setIsSaving] = useState(false);
@@ -44,11 +51,10 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
     }
 
     const cleaned = found.map((u) => u.replace(/[),.]+$/, ''));
-    const existingCount = rows.filter((r) => r.driveUrl.trim()).length;
 
     const newRows: DraftRow[] = cleaned.map((url, idx) => ({
       id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
-      title: `Untitled Item ${existingCount + idx + 1}`,
+      title: '',
       driveUrl: url,
       category: '',
       subcategory: '',
@@ -60,7 +66,7 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
     });
     setBulkPasteText('');
     setErrorMessage(null);
-    setSuccessMessage(`Parsed ${newRows.length} link${newRows.length > 1 ? 's' : ''} into rows below — rename the titles, then click "Add to Portfolio".`);
+    setSuccessMessage(`Parsed ${newRows.length} link${newRows.length > 1 ? 's' : ''} into rows below. Leave the title blank to auto-name items from the category (e.g. "Fashion Logo 1", "Fashion Logo 2"), or type your own.`);
   };
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
@@ -73,11 +79,11 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
   };
 
-  const validRows = rows.filter((r) => r.title.trim() && r.driveUrl.trim());
+  const validRows = rows.filter((r) => r.driveUrl.trim());
 
-  const handleCreateItems = async () => {
+  const handleCreateItems = async (addToShowcase: boolean) => {
     if (validRows.length === 0) {
-      setErrorMessage('Add at least one row with both a title and a Drive link.');
+      setErrorMessage('Add at least one row with a Drive link.');
       return;
     }
 
@@ -86,17 +92,32 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
     setSuccessMessage(null);
 
     try {
+      // Rows left blank get a relevant auto-generated name from their
+      // category/subcategory instead of a generic "Untitled" placeholder,
+      // numbered per group (e.g. "Fashion Logo 1", "Fashion Logo 2"...).
+      const groupCounters: Record<string, number> = {};
+
       const newItems: PortfolioItem[] = validRows.map((row) => {
         const category = row.category.trim() || defaultCategory.trim() || 'Uncategorized';
         const subcategory = row.subcategory.trim() || undefined;
+
+        let name = row.title.trim();
+        if (!name) {
+          const groupKey = `${category}::${subcategory || ''}`;
+          groupCounters[groupKey] = (groupCounters[groupKey] || 0) + 1;
+          name = subcategory
+            ? `${category} - ${subcategory} ${groupCounters[groupKey]}`
+            : `${category} ${groupCounters[groupKey]}`;
+        }
+
         const thumb = getDriveThumb(row.driveUrl.trim(), 800);
         const thumbSmall = getDriveThumb(row.driveUrl.trim(), 400);
         const thumbLarge = getDriveThumb(row.driveUrl.trim(), 1400);
-        const mediaType = detectMediaType(row.title, row.driveUrl.trim());
+        const mediaType = detectMediaType(name, row.driveUrl.trim());
 
         return {
           id: `drive-link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          name: row.title.trim(),
+          name,
           category,
           subcategory,
           drive_link: row.driveUrl.trim(),
@@ -111,9 +132,15 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
       });
 
       await saveCustomItemsToCloud(newItems);
-      onItemsAdded(newItems);
 
-      setSuccessMessage(`Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} to your portfolio catalog.`);
+      if (addToShowcase) {
+        onItemsAddedToShowcase(newItems);
+        setSuccessMessage(`Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} to your portfolio catalog AND selected them into "${activeShowcaseName || 'the current showcase'}" — just hit Launch Client View or Copy Link.`);
+      } else {
+        onItemsAdded(newItems);
+        setSuccessMessage(`Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} to your portfolio catalog.`);
+      }
+
       setRows([newRow()]);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save items. Please try again.');
@@ -188,7 +215,7 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
                 type="text"
                 value={row.title}
                 onChange={(e) => updateRow(row.id, { title: e.target.value })}
-                placeholder={`Title #${idx + 1} (e.g. Lumina Packaging Mockup)`}
+                placeholder="Title (optional — auto-named from category if left blank)"
                 className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
               />
               <input
@@ -242,18 +269,33 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-2 gap-3 flex-wrap">
           <p className="text-[11px] text-slate-400 font-mono">
             {validRows.length} of {rows.length} row{rows.length > 1 ? 's' : ''} ready ({rows.length - validRows.length} incomplete)
           </p>
-          <button
-            onClick={handleCreateItems}
-            disabled={isSaving || validRows.length === 0}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-space-grotesk font-bold text-xs shadow-lg shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
-          >
-            <UploadCloud className="w-4 h-4" />
-            <span>{isSaving ? 'Adding...' : `Add ${validRows.length || ''} to Portfolio`}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCreateItems(false)}
+              disabled={isSaving || validRows.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-space-grotesk font-bold text-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>{isSaving ? 'Adding...' : `Add ${validRows.length || ''} to Portfolio`}</span>
+            </button>
+            <button
+              onClick={() => handleCreateItems(true)}
+              disabled={isSaving || validRows.length === 0}
+              title={activeShowcaseName ? `Adds items and selects them into "${activeShowcaseName}"` : 'Adds items and selects them into the current showcase'}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-space-grotesk font-bold text-xs shadow-lg shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>
+                {isSaving
+                  ? 'Adding...'
+                  : `Add ${validRows.length || ''} to Portfolio + Current Showcase${activeShowcaseName ? ` (${activeShowcaseName})` : ''}`}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
