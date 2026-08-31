@@ -51,6 +51,7 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({ onItemsAdded, exis
       title: `Untitled Item ${existingCount + idx + 1}`,
       driveUrl: url,
       category: '',
+      subcategory: '',
     }));
 
     setRows((prev) => {

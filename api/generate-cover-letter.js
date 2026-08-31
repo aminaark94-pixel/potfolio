@@ -259,6 +259,13 @@ function insertShowcaseLinkBlock(letterText, showcaseLinks, specialistTitle, ful
   });
   cleaned = cleaned
     .replace(/\[\s*\]\(\s*\)/g, '')
+    // Safety net: strip any AI-written "take a moment to explore my past
+    // work" style sentence (plain text, not our fixed bold version) plus
+    // any bracket-only project-name lines that follow it — in case the
+    // model mirrors a style reference's link-list section despite being
+    // told not to.
+    .replace(/^.*(take a moment to explore|explore my (past|completed) (projects|work)|please find my portfolio)[^\n]*\n(\s*\[[^\]\n]+\]\s*\n)+/gim, '')
+    .replace(/^(\s*\[[^\]\n]+\]\s*\n){2,}/gim, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
 
@@ -633,10 +640,15 @@ INSTRUCTIONS:
    overall structure as closely as possible. Only change the actual content (names, projects,
    requirements) — do not deviate from its format or invent a different structure.
 3. Specifically address the core pain points and requirements mentioned in the job post.
-4. Do NOT mention, embed, or link to the showcase/portfolio anywhere in your text. Do NOT write any
-   URL or markdown link syntax like [text](url). A portfolio link section will be inserted
-   automatically after your text by the system — just end your letter's body content naturally,
-   as if leading into a sign-off next (no "please find my portfolio below" sentence needed either).
+4. Do NOT mention, embed, link to, or list the showcase/portfolio anywhere in your text — this
+   includes writing any URL or markdown link syntax like [text](url), AND it includes writing any
+   "take a moment to explore my past work" style sentence followed by a list of project names (in
+   brackets, as bullet points, or any other form). Even if the style reference above contains such a
+   project-list section, SKIP that part entirely and do not mirror it — a single portfolio link line
+   will be inserted automatically after your text by the system, so treat that as already handled.
+   Simply write your closing sentence(s) as if leading straight into the sign-off next (e.g. an offer
+   to help or a call to action), with no "please find my portfolio below" sentence and no project
+   names or brackets anywhere in the body.
 5. Keep the writing polished, authentic, punchy, and confident without corporate fluff or generic buzzwords.
 6. Sign off with EXACTLY this, and nothing else — do not invent a studio/brand/company name anywhere
    in the letter or signature:

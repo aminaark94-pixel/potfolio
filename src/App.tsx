@@ -23,7 +23,13 @@ import {
 export default function App() {
   const [showcases, setShowcases] = useState<Record<string, Showcase>>({});
   const [activeSlug, setActiveSlug] = useState<string>('new-client-f0c7');
-  const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog'>('admin');
+  // Detect a client showcase link (#showcase=...) synchronously on first
+  // render, so the admin-only Navbar never flashes before switching to the
+  // client view — the hash is known immediately, no need to wait for the
+  // async data-loading effect below to set it.
+  const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog'>(() =>
+    typeof window !== 'undefined' && window.location.hash.includes('showcase=') ? 'client' : 'admin'
+  );
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
   const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [cloudError, setCloudError] = useState<string | null>(null);

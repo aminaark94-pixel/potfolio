@@ -311,7 +311,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               <img
                 src={founderPhoto}
                 alt="Aala Studio"
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shadow-xl border-2 glass-hairline shrink-0"
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-xl border-2 glass-hairline shrink-0"
                 style={{ borderColor: theme.accentSoft }}
               />
               <motion.div
