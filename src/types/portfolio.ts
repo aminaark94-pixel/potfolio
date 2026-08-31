@@ -100,6 +100,7 @@ export interface CoverLetterStyle {
 export interface CoverLetterGenerationResult {
   coverLetter: string;
   showcaseLink: string;
+  showcaseLinks?: string[];
   showcaseSlug: string;
   showcaseHeading: string;
   clientNameDetected?: string | null;
@@ -107,10 +108,12 @@ export interface CoverLetterGenerationResult {
   catalogSize?: number;
   matchedItemIds: string[];
   matchedItems: PortfolioItem[];
-  showcase: Showcase;
+  showcase: Showcase | null;
   provider: string;
   matchingProvider?: string;
   templateUsed?: string | null;
+  usedExistingShowcases?: boolean;
+  skippedCoverLetter?: boolean;
 }
 
 export interface PortfolioTemplate {

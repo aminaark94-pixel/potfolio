@@ -45,6 +45,7 @@ import {
 } from '../utils/googleDrive';
 import { CoverLetterTab } from './CoverLetterTab';
 import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
+import { DriveLinksTab } from './DriveLinksTab';
 import confetti from 'canvas-confetti';
 
 function extractDriveFileId(driveLink: string | null | undefined): string | null {
@@ -96,7 +97,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newTheme, setNewTheme] = useState<ThemeId>('rust');
 
   // Top-level section switcher: Showcases workspace vs Cover Letter generator vs Templates
-  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter' | 'templates'>('showcases');
+  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter' | 'templates' | 'drivelinks'>('showcases');
 
   // Bulk-select state for the manual catalog picker
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -366,7 +367,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           Portfolio Templates
         </button>
+        <button
+          onClick={() => setActiveSection('drivelinks')}
+          className={`px-4 py-2 rounded-xl text-xs font-space-grotesk font-bold transition-all cursor-pointer ${
+            activeSection === 'drivelinks'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Drive Links
+        </button>
       </div>
+
+      {activeSection === 'drivelinks' && (
+        <DriveLinksTab
+          onItemsAdded={(items) => {
+            onBulkAddItems(items);
+          }}
+        />
+      )}
 
       {activeSection === 'coverletter' && (
         <CoverLetterTab

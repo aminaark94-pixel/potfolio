@@ -243,16 +243,21 @@ async function callAI(messages, jsonMode = false, timeoutMs = 6500) {
  * This guarantees the link always appears exactly once, plain (no markdown
  * brackets), with the same intro line every time — never left to the AI.
  */
-function insertShowcaseLinkBlock(letterText, showcaseLink, specialistTitle, fullName) {
+function insertShowcaseLinkBlock(letterText, showcaseLinks, specialistTitle, fullName) {
+  const links = Array.isArray(showcaseLinks) ? showcaseLinks : [showcaseLinks];
   const FIXED_INTRO_LINE = '𝗣𝗹𝗲𝗮𝘀𝗲 𝘁𝗮𝗸𝗲 𝗮 𝗺𝗼𝗺𝗲𝗻𝘁 𝘁𝗼 𝗲𝘅𝗽𝗹𝗼𝗿𝗲 𝗺𝘆 𝗽𝗮𝘀𝘁 𝗰𝗼𝗺𝗽𝗹𝗲𝘁𝗲𝗱 𝗽𝗿𝗼𝗷𝗲𝗰𝘁𝘀 𝗯𝗲𝗹𝗼𝘄:';
-  const linkBlock = `${FIXED_INTRO_LINE}\n${showcaseLink}`;
+  const linkBlock = `${FIXED_INTRO_LINE}\n${links.join('\n')}`;
 
   // Defensively strip out any link/markdown the AI might have added anyway,
   // and any duplicate mangled markdown like [text](url](url))
-  const escapedUrl = showcaseLink.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  let cleaned = letterText
-    .replace(new RegExp(`\\[([^\\]]*)\\]\\(\\s*${escapedUrl}[^)]*\\)+`, 'g'), '')
-    .replace(new RegExp(escapedUrl, 'g'), '')
+  let cleaned = letterText;
+  links.forEach((showcaseLink) => {
+    const escapedUrl = showcaseLink.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned
+      .replace(new RegExp(`\\[([^\\]]*)\\]\\(\\s*${escapedUrl}[^)]*\\)+`, 'g'), '')
+      .replace(new RegExp(escapedUrl, 'g'), '');
+  });
+  cleaned = cleaned
     .replace(/\[\s*\]\(\s*\)/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
@@ -332,7 +337,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { jobPostText, styleSampleText, styleName, profile, portfolioItems = [], portfolioTemplates = [] } = req.body || {};
+    const { jobPostText, styleSampleText, styleName, profile, portfolioItems = [], portfolioTemplates = [], existingShowcases = [], skipCoverLetter = false } = req.body || {};
 
     if (!jobPostText || typeof jobPostText !== 'string' || jobPostText.trim().length < 10) {
       return res.status(400).json({ error: 'Please provide a valid job post text.' });
@@ -362,18 +367,46 @@ export default async function handler(req, res) {
     let jobTitle = null;   // the role/position being applied to
     let specialistTitle = null; // e.g. "Top-Rated Graphic & Brand Identity Design Specialist"
 
+    // If the admin selected existing showcases to reuse, skip AI/template
+    // portfolio matching and auto-creation entirely — just use those links.
+    const usingExistingShowcases = Array.isArray(existingShowcases) && existingShowcases.length > 0;
+
+    if (usingExistingShowcases) {
+      const validIds = new Set(portfolioItems.map(i => i.id));
+      const unionIds = new Set();
+      existingShowcases.forEach(sc => (sc.item_ids || []).forEach(id => { if (validIds.has(id)) unionIds.add(id); }));
+      matchedItemIds = Array.from(unionIds);
+    }
+
     // Check hand-curated Portfolio Templates FIRST — a deterministic, admin-
     // curated match (e.g. "Therapy Clinic") is trusted over AI/keyword
     // matching, since it avoids false positives like a psychotherapy job
     // pulling in an unrelated "love therapy" logo just because both contain
     // the word "therapy".
-    const matchedTemplate = findBestTemplateMatch(jobPostText, portfolioTemplates);
+    const matchedTemplate = usingExistingShowcases ? null : findBestTemplateMatch(jobPostText, portfolioTemplates);
     if (matchedTemplate) {
       const validCatalogIds = new Set(portfolioItems.map(i => i.id));
       matchedItemIds = matchedTemplate.item_ids.filter(id => validCatalogIds.has(id));
     }
 
-    const matchPrompt = `You are an expert design director and talent matcher for a creative studio.
+    const matchPrompt = usingExistingShowcases
+      ? `You are an expert design director. Read the job post below and extract two facts:
+- "client_name": the actual hiring company/client/brand name IF the job post explicitly names one. If none is mentioned, set to null — do NOT invent one.
+- "job_title": the role/position title being hired for. Always provide your best guess.
+- "specialist_title": a short, confident professional title describing the applicant as an expert in THIS job's discipline (e.g. a branding job → "Top-Rated Graphic & Brand Identity Design Specialist").
+
+JOB POST:
+"""
+${jobPostText.substring(0, 4000)}
+"""
+
+Return ONLY a valid JSON object:
+{
+  "client_name": "Company Name" or null,
+  "job_title": "Role Title",
+  "specialist_title": "..."
+}`
+      : `You are an expert design director and talent matcher for a creative studio.
 Read the job post below carefully and do three things:
 
 1. Select the ${MIN_ITEMS} to ${MAX_ITEMS} MOST relevant portfolio items from the catalog, based on
@@ -428,9 +461,9 @@ Return ONLY a valid JSON object in this exact format:
     if (matchRaw) {
       try {
         const parsed = JSON.parse(matchRaw);
-        // Only let the AI set matched_item_ids if a curated template wasn't
-        // already found above — a template match always wins.
-        if (!matchedTemplate && Array.isArray(parsed.matched_item_ids) && parsed.matched_item_ids.length > 0) {
+        // Only let the AI set matched_item_ids if a curated template/existing
+        // showcase selection wasn't already applied above — those always win.
+        if (!matchedTemplate && !usingExistingShowcases && Array.isArray(parsed.matched_item_ids) && parsed.matched_item_ids.length > 0) {
           const validCatalogIds = new Set(portfolioItems.map(i => i.id));
           matchedItemIds = parsed.matched_item_ids.filter(id => validCatalogIds.has(id));
         }
@@ -450,24 +483,27 @@ Return ONLY a valid JSON object in this exact format:
 
     // Top up with local keyword matching if the AI/template returned fewer
     // than MIN_ITEMS (or failed entirely) — never leave the showcase with
-    // just 1-2 items. (Skipped when a template already gave a full, curated
-    // set — topping up would dilute a deliberately hand-picked collection.)
-    if (!matchedTemplate && matchedItemIds.length < Math.min(MIN_ITEMS, portfolioItems.length)) {
+    // just 1-2 items. (Skipped when a template/existing-showcase selection
+    // already gave a full, curated set — topping up would dilute it.)
+    if (!matchedTemplate && !usingExistingShowcases && matchedItemIds.length < Math.min(MIN_ITEMS, portfolioItems.length)) {
       const localRanked = localKeywordMatching(jobPostText, portfolioItems);
       for (const id of localRanked) {
         if (matchedItemIds.length >= MIN_ITEMS) break;
         if (!matchedItemIds.includes(id)) matchedItemIds.push(id);
       }
     }
-    matchedItemIds = matchedItemIds.slice(0, MAX_ITEMS);
+    if (!usingExistingShowcases) {
+      matchedItemIds = matchedItemIds.slice(0, MAX_ITEMS);
+    }
 
     if (matchedItemIds.length === 0 && portfolioItems.length > 0) {
       matchedItemIds = portfolioItems.slice(0, MIN_ITEMS).map(i => i.id);
     }
 
     // ─────────────────────────────────────────────────────────────
-    // STEP B: Auto-Create Showcase — client name on top if known,
-    // otherwise a generic heading built from the job title.
+    // STEP B: Auto-Create Showcase (skipped if reusing existing showcases)
+    // — client name on top if known, otherwise a generic heading built
+    // from the job title.
     // ─────────────────────────────────────────────────────────────
     if (!jobTitle) {
       const regexFallback = extractOpportunityDetails(jobPostText);
@@ -479,28 +515,73 @@ Return ONLY a valid JSON object in this exact format:
     }
 
     const usingClientName = !!clientName;
-    const cleanHeading = usingClientName ? clientName : jobTitle;
-    const brandNameForShowcase = usingClientName ? clientName : 'Aala Studio';
 
-    const randomSuffix = Math.random().toString(36).substring(2, 6);
-    const slug = `${slugify(cleanHeading)}-${randomSuffix}`;
-    const showcaseLink = `${baseUrl}/#showcase=${slug}`;
+    let cleanHeading, showcaseLink, showcaseLinks, newShowcase;
 
-    const newShowcase = {
-      id: `showcase-${Date.now()}-${randomSuffix}`,
-      slug: slug,
-      brand_name: brandNameForShowcase,
-      heading: cleanHeading,
-      tagline: usingClientName
-        ? `Curated design & creative deliverables tailored for ${clientName}`
-        : `Curated case studies tailored for this ${jobTitle} opportunity`,
-      logo_url: "",
-      item_ids: matchedItemIds,
-      theme: "indigo",
-      heroStyle: "minimal-glow",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (usingExistingShowcases) {
+      cleanHeading = usingClientName
+        ? clientName
+        : (existingShowcases.length === 1 ? existingShowcases[0].heading : jobTitle);
+      showcaseLinks = existingShowcases.map(sc => `${baseUrl}/#showcase=${sc.slug}`);
+      showcaseLink = showcaseLinks[0];
+      newShowcase = null; // nothing new created — reusing what the admin picked
+    } else {
+      const brandNameForShowcase = usingClientName ? clientName : 'Aala Studio';
+      cleanHeading = usingClientName ? clientName : jobTitle;
+
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const slug = `${slugify(cleanHeading)}-${randomSuffix}`;
+      showcaseLink = `${baseUrl}/#showcase=${slug}`;
+      showcaseLinks = [showcaseLink];
+
+      newShowcase = {
+        id: `showcase-${Date.now()}-${randomSuffix}`,
+        slug: slug,
+        brand_name: brandNameForShowcase,
+        heading: cleanHeading,
+        tagline: usingClientName
+          ? `Curated design & creative deliverables tailored for ${clientName}`
+          : `Curated case studies tailored for this ${jobTitle} opportunity`,
+        logo_url: "",
+        item_ids: matchedItemIds,
+        theme: "indigo",
+        heroStyle: "minimal-glow",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // If "just get the link" mode was requested, stop here — no need to
+    // spend an AI call writing a cover letter.
+    // ─────────────────────────────────────────────────────────────
+    if (skipCoverLetter) {
+      const matchedFullItemsOnly = portfolioItems.filter(i => matchedItemIds.includes(i.id));
+      return res.status(200).json({
+        coverLetter: '',
+        skippedCoverLetter: true,
+        usedExistingShowcases: usingExistingShowcases,
+        showcaseLink,
+        showcaseLinks,
+        showcaseSlug: newShowcase ? newShowcase.slug : (existingShowcases[0] && existingShowcases[0].slug) || '',
+        showcaseHeading: cleanHeading,
+        clientNameDetected: usingClientName ? clientName : null,
+        specialistTitle,
+        catalogSize: portfolioItems.length,
+        matchedItemIds,
+        matchedItems: matchedFullItemsOnly,
+        showcase: newShowcase,
+        provider: 'N/A (cover letter skipped)',
+        templateUsed: matchedTemplate ? matchedTemplate.name : null,
+        matchingProvider: usingExistingShowcases
+          ? 'Existing showcase selection'
+          : matchedTemplate
+          ? `Curated template: "${matchedTemplate.name}"`
+          : matchingProviderInfo
+          ? `${matchingProviderInfo.provider} — API key #${matchingProviderInfo.keyIndex} of ${matchingProviderInfo.keyCount}`
+          : 'Local keyword matching'
+      });
+    }
 
     // ─────────────────────────────────────────────────────────────
     // STEP C: Generate Cover Letter
@@ -590,7 +671,7 @@ INSTRUCTIONS:
 
     // Deterministically insert the fixed intro line + raw link right before
     // the sign-off — never left to the AI, so formatting is identical every time.
-    generatedLetter = insertShowcaseLinkBlock(generatedLetter, showcaseLink, specialistTitle, candidateProfile.fullName);
+    generatedLetter = insertShowcaseLinkBlock(generatedLetter, showcaseLinks, specialistTitle, candidateProfile.fullName);
 
     const matchedFullItems = portfolioItems.filter(i => matchedItemIds.includes(i.id));
 
@@ -602,7 +683,8 @@ INSTRUCTIONS:
     return res.status(200).json({
       coverLetter: generatedLetter,
       showcaseLink,
-      showcaseSlug: slug,
+      showcaseLinks,
+      showcaseSlug: newShowcase ? newShowcase.slug : (existingShowcases[0] && existingShowcases[0].slug) || '',
       showcaseHeading: cleanHeading,
       clientNameDetected: usingClientName ? clientName : null,
       specialistTitle,
@@ -612,7 +694,10 @@ INSTRUCTIONS:
       showcase: newShowcase,
       provider: providerLabel,
       templateUsed: matchedTemplate ? matchedTemplate.name : null,
-      matchingProvider: matchedTemplate
+      usedExistingShowcases: usingExistingShowcases,
+      matchingProvider: usingExistingShowcases
+        ? 'Existing showcase selection'
+        : matchedTemplate
         ? `Curated template: "${matchedTemplate.name}"`
         : matchingProviderInfo
         ? `${matchingProviderInfo.provider} — API key #${matchingProviderInfo.keyIndex} of ${matchingProviderInfo.keyCount}`

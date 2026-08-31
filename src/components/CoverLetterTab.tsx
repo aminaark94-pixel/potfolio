@@ -36,6 +36,7 @@ import {
   saveCoverLetterStyleToCloud, 
   deleteCoverLetterStyleFromCloud,
   loadPortfolioTemplatesFromCloud,
+  loadShowcasesFromCloud,
   saveShowcaseToCloud,
   getAllPortfolioItems
 } from '../utils/storage';
@@ -75,6 +76,16 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
   // 2b. Portfolio Templates (curated item sets per client vertical, e.g. "Therapy Clinic")
   const [portfolioTemplates, setPortfolioTemplates] = useState<PortfolioTemplate[]>([]);
 
+  // 2c. Existing Showcases — pick one or more previously-created showcase
+  // links to reuse instead of always auto-creating a brand new one.
+  const [existingShowcases, setExistingShowcases] = useState<Showcase[]>([]);
+  const [showExistingPicker, setShowExistingPicker] = useState(false);
+  const [selectedExistingSlugs, setSelectedExistingSlugs] = useState<Set<string>>(new Set());
+  const [existingSearchQuery, setExistingSearchQuery] = useState('');
+
+  // 2d. Skip cover-letter mode — just generate/select a showcase link, no letter text
+  const [skipCoverLetter, setSkipCoverLetter] = useState(false);
+
   // 3. Generator State
   const [jobPostText, setJobPostText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -101,6 +112,9 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
 
         const loadedTemplates = await loadPortfolioTemplatesFromCloud();
         setPortfolioTemplates(loadedTemplates);
+
+        const loadedShowcases = await loadShowcasesFromCloud();
+        setExistingShowcases(Object.values(loadedShowcases).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')));
       } catch (err) {
         console.error('Failed to load initial cover letter data', err);
       }
@@ -175,20 +189,24 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
 
     setErrorMsg(null);
     setIsGenerating(true);
-    setGenerationStep('Matching relevant portfolio items...');
+    setGenerationStep(skipCoverLetter ? 'Preparing showcase link...' : 'Matching relevant portfolio items...');
 
     try {
       const selectedStyle = styles.find(s => s.id === selectedStyleId) || styles[0];
       const allItems = getAllPortfolioItems();
 
-      // Update step progress
-      setTimeout(() => {
-        setGenerationStep('Analyzing skills & auto-creating customized showcase...');
-      }, 1200);
+      const chosenExistingShowcases = existingShowcases.filter(sc => selectedExistingSlugs.has(sc.slug));
 
-      setTimeout(() => {
-        setGenerationStep('Synthesizing tone & writing tailored cover letter...');
-      }, 2400);
+      // Update step progress
+      if (!skipCoverLetter) {
+        setTimeout(() => {
+          setGenerationStep('Analyzing skills & auto-creating customized showcase...');
+        }, 1200);
+
+        setTimeout(() => {
+          setGenerationStep('Synthesizing tone & writing tailored cover letter...');
+        }, 2400);
+      }
 
       const response = await fetch('/api/generate-cover-letter', {
         method: 'POST',
@@ -200,7 +218,9 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
           styleSampleText: selectedStyle?.sampleText,
           profile,
           portfolioItems: allItems,
-          portfolioTemplates
+          portfolioTemplates,
+          existingShowcases: chosenExistingShowcases,
+          skipCoverLetter
         })
       });
 
@@ -211,7 +231,8 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
 
       const data = await response.json();
 
-      // Persist the auto-created showcase to cloud storage
+      // Persist the auto-created showcase to cloud storage (skipped when
+      // reusing existing showcases — nothing new was created)
       if (data.showcase) {
         await saveShowcaseToCloud(data.showcase);
         if (onShowcaseCreated) {
@@ -249,7 +270,11 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
   };
 
   const handleCopyLink = () => {
-    if (result?.showcaseLink) {
+    if (result?.showcaseLinks && result.showcaseLinks.length > 0) {
+      navigator.clipboard.writeText(result.showcaseLinks.join('\n'));
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } else if (result?.showcaseLink) {
       navigator.clipboard.writeText(result.showcaseLink);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
@@ -347,9 +372,97 @@ Key Requirements:
             </div>
           </div>
 
+          {/* Existing Showcase Picker */}
+          <div className="rounded-2xl border border-slate-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowExistingPicker((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 font-space-grotesk flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" />
+                Use existing showcase link(s) instead of auto-creating
+                {selectedExistingSlugs.size > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px]">
+                    {selectedExistingSlugs.size} selected
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-slate-400">{showExistingPicker ? 'Hide' : `${existingShowcases.length} available`}</span>
+            </button>
+
+            {showExistingPicker && (
+              <div className="p-3 space-y-2 bg-white">
+                <input
+                  type="text"
+                  value={existingSearchQuery}
+                  onChange={(e) => setExistingSearchQuery(e.target.value)}
+                  placeholder="Search your saved showcases..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                />
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                  {existingShowcases
+                    .filter((sc) =>
+                      !existingSearchQuery.trim() ||
+                      sc.heading.toLowerCase().includes(existingSearchQuery.toLowerCase()) ||
+                      sc.brand_name.toLowerCase().includes(existingSearchQuery.toLowerCase())
+                    )
+                    .map((sc) => {
+                      const isSelected = selectedExistingSlugs.has(sc.slug);
+                      return (
+                        <button
+                          key={sc.slug}
+                          type="button"
+                          onClick={() => {
+                            setSelectedExistingSlugs((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(sc.slug)) next.delete(sc.slug);
+                              else next.add(sc.slug);
+                              return next;
+                            });
+                          }}
+                          className={`w-full text-left flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-950 font-semibold'
+                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="truncate">
+                            {sc.heading || sc.brand_name} <span className="text-slate-400 font-mono">({sc.item_ids.length} items)</span>
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  {existingShowcases.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-3">No saved showcases yet.</p>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono pt-1">
+                  {selectedExistingSlugs.size > 0
+                    ? `All ${selectedExistingSlugs.size} selected link(s) will be included — AI matching/auto-creation is skipped.`
+                    : 'Nothing selected — the system will auto-create a new showcase as usual.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Skip Cover Letter toggle */}
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={skipCoverLetter}
+              onChange={(e) => setSkipCoverLetter(e.target.checked)}
+              className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+            />
+            <span className="text-xs font-space-grotesk font-semibold text-slate-600">
+              Just get the showcase link — skip writing a cover letter
+            </span>
+          </label>
+
           {/* Style Selector & Action */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-2">
-            <div className="md:col-span-2">
+            <div className={`md:col-span-2 ${skipCoverLetter ? 'opacity-40 pointer-events-none' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 font-space-grotesk">
                   Writing Style Reference
@@ -396,12 +509,12 @@ Key Requirements:
                 {isGenerating ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
+                    <span>{skipCoverLetter ? 'Preparing link...' : 'Generating...'}</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Generate Cover Letter</span>
+                    <span>{skipCoverLetter ? 'Get Showcase Link' : 'Generate Cover Letter'}</span>
                   </>
                 )}
               </button>
@@ -442,20 +555,24 @@ Key Requirements:
         {/* ───────────────────────────────────────────────────────────── */}
         {result && !isGenerating && (
           <div className="mt-10 pt-8 border-t border-slate-200 space-y-8 animate-fadeIn">
-            {/* Success Banner & Showcase Link */}
+            {/* Success Banner & Showcase Link(s) */}
             <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-5 sm:p-6 text-white border border-indigo-900/50 shadow-md">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/30 mb-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    Auto-Created Showcase Ready
+                    {result.usedExistingShowcases ? 'Existing Showcase(s) Selected' : 'Auto-Created Showcase Ready'}
                   </div>
                   <h4 className="text-lg font-bold font-space-grotesk text-white">
                     Personalized Showcase for {result.showcaseHeading || 'Client Opportunity'}
                   </h4>
-                  <p className="text-slate-300 text-xs mt-1 max-w-xl truncate">
-                    {result.showcaseLink}
-                  </p>
+                  <div className="space-y-1 mt-1.5">
+                    {(result.showcaseLinks && result.showcaseLinks.length > 0 ? result.showcaseLinks : [result.showcaseLink]).map((link, i) => (
+                      <p key={i} className="text-slate-300 text-xs max-w-xl truncate font-mono">
+                        {link}
+                      </p>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -472,7 +589,7 @@ Key Requirements:
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Link</span>
+                        <span>{result.showcaseLinks && result.showcaseLinks.length > 1 ? 'Copy All Links' : 'Copy Link'}</span>
                       </>
                     )}
                   </button>
@@ -484,13 +601,14 @@ Key Requirements:
                     className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium py-2 px-3.5 rounded-xl transition-colors shadow-sm"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    <span>View Live Showcase</span>
+                    <span>View</span>
                   </a>
                 </div>
               </div>
             </div>
 
-            {/* Generated Cover Letter */}
+            {/* Generated Cover Letter — hidden when "just get the link" mode was used */}
+            {!result.skippedCoverLetter && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -556,6 +674,7 @@ Key Requirements:
                 </div>
               </div>
             </div>
+            )}
 
             {/* Matched Portfolio Items List */}
             <div className="space-y-4">
