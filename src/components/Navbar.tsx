@@ -22,7 +22,6 @@ interface NavbarProps {
   activeSlug: string;
   onSelectShowcase: (slug: string) => void;
   onOpenCreateShowcase: () => void;
-  onOpenDownloadModal: () => void;
   onOpenCustomItemModal: () => void;
   isAdminAuthed?: boolean;
   onAdminLogout?: () => void;
@@ -35,7 +34,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeSlug,
   onSelectShowcase,
   onOpenCreateShowcase,
-  onOpenDownloadModal,
   onOpenCustomItemModal,
   isAdminAuthed,
   onAdminLogout,
@@ -141,16 +139,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Plus className="w-3.5 h-3.5 text-indigo-600" />
               <span>Upload to Drive</span>
-            </button>
-
-            {/* Download Codes & Instructions Button */}
-            <button
-              onClick={onOpenDownloadModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-space-grotesk font-bold transition-all hover:scale-105 active:scale-95 shadow-md shadow-indigo-200 cursor-pointer"
-              title="Download codes & Windows 10 setup guide"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Get Codes & Setup</span>
             </button>
 
             {viewMode === 'admin' && isAdminAuthed && onAdminLogout && (

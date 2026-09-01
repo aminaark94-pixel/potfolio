@@ -5,7 +5,6 @@ import { AdminLogin } from './components/AdminLogin';
 import { ClientShowcaseView } from './components/ClientShowcaseView';
 import { CatalogExplorer } from './components/CatalogExplorer';
 import { LightboxModal } from './components/LightboxModal';
-import { SetupInstructionsModal } from './components/SetupInstructionsModal';
 import { AddCustomItemModal } from './components/AddCustomItemModal';
 import { Showcase, PortfolioItem } from './types/portfolio';
 import { THEMES } from './data/themes';
@@ -53,7 +52,6 @@ export default function App() {
   
   // Modals state
   const [selectedLightboxItem, setSelectedLightboxItem] = useState<PortfolioItem | null>(null);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState<boolean>(false);
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState<boolean>(false);
 
   // Initialize data on mount — loads from the shared Firestore database so
@@ -178,7 +176,6 @@ export default function App() {
           onOpenCreateShowcase={() => {
             setViewMode('admin');
           }}
-          onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
           onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
           isAdminAuthed={isAdminAuthed === true}
           onAdminLogout={handleAdminLogout}
@@ -234,7 +231,6 @@ export default function App() {
             onOpenClientView={() => setViewMode('client')}
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
-            onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
             onBulkAddItems={handleBulkAddItems}
           />
         )}
@@ -245,7 +241,6 @@ export default function App() {
             allItems={allItems}
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onUpdateShowcase={handleUpdateShowcase}
-            onOpenDownloadModal={() => setIsDownloadModalOpen(true)}
             isAdminPreview={isAdminAuthed === true}
             onExitToAdmin={() => setViewMode('admin')}
           />
@@ -291,12 +286,6 @@ export default function App() {
             });
           }
         }}
-      />
-
-      {/* 1-Click Code Download & Windows 10 Setup Guide Modal */}
-      <SetupInstructionsModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
       />
 
       {/* Add Custom Item Modal */}
