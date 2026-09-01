@@ -420,8 +420,9 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
           </div>
         ) : (
           <div className="space-y-12">
-            {/* If a specific category is chosen */}
-            {selectedCategory !== 'All' ? (
+            {/* If a specific category is chosen, OR the showcase is set to
+                "flow" layout, render everything in one flat gallery. */}
+            {selectedCategory !== 'All' || showcase.layoutMode === 'flow' ? (
               <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
                 {filteredItems.map((item, index) => (
                   <ShowcaseCard

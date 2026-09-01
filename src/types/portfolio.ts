@@ -67,6 +67,10 @@ export interface Showcase {
   contactWhatsapp?: string;
   ctaText?: string;
   ctaLink?: string;
+  // Controls how items render when the client is viewing "All" categories:
+  // 'grouped' shows separate sections per category with headers, 'flow'
+  // shows every item together in one continuous gallery.
+  layoutMode?: 'grouped' | 'flow';
   feedback?: Record<string, ClientFeedback>;
   createdAt: string;
   updatedAt: string;
