@@ -146,10 +146,15 @@ export default function App() {
     }
   };
 
-  // Add many items at once (used by "Sync from Drive")
-  const handleBulkAddItems = (newItems: PortfolioItem[]) => {
+  // Add many items at once (used by "Sync from Drive" and the Drive Links
+  // bulk-paste tool). Awaits the cloud write and only updates local state
+  // once it's confirmed saved — previously this fired the save without
+  // waiting and silently swallowed any failure, so items could look added
+  // in the UI for this session but never actually persist to the shared
+  // database, reappearing as "new" on the next sync from another device.
+  const handleBulkAddItems = async (newItems: PortfolioItem[]) => {
     if (newItems.length === 0) return;
-    saveCustomItemsToCloud(newItems).catch(() => {});
+    await saveCustomItemsToCloud(newItems);
 
     const updatedCatalog = getAllPortfolioItems();
     const nextCustom = [...newItems, ...updatedCatalog.filter((i) => i.custom)];

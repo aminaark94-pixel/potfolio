@@ -70,7 +70,7 @@ interface AdminPanelProps {
   onOpenLightbox: (item: PortfolioItem) => void;
   onOpenCustomItemModal: () => void;
   onOpenDownloadModal: () => void;
-  onBulkAddItems: (items: PortfolioItem[]) => void;
+  onBulkAddItems: (items: PortfolioItem[]) => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -190,12 +190,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             custom: true,
           };
         });
-        onBulkAddItems(newItems);
-        setSyncResultMessage(`Added ${newItems.length} new item${newItems.length === 1 ? '' : 's'} found in Drive.`);
+        await onBulkAddItems(newItems);
+        setSyncResultMessage(`Added ${newItems.length} new item${newItems.length === 1 ? '' : 's'} found in Drive — saved permanently, they won't be re-scanned next sync.`);
       }
     } catch (err: any) {
       console.error('Drive sync error', err);
-      setSyncResultMessage(err.message || 'Could not sync with Google Drive. Please try reconnecting.');
+      setSyncResultMessage(err.message || 'Could not sync with Google Drive, or the save failed — nothing was permanently saved. Please try again.');
     } finally {
       setIsSyncingDrive(false);
       setSyncStatusMessage('');
