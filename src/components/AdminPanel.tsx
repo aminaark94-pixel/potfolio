@@ -24,6 +24,7 @@ import {
   LayoutGrid,
   ChevronLeft,
   ChevronRight,
+  GripVertical,
   Filter
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
@@ -134,6 +135,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Search & Catalog Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'gif' | 'pdf'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -309,6 +311,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const newItemIds = [...currentShowcase.item_ids];
     [newItemIds[index], newItemIds[targetIndex]] = [newItemIds[targetIndex], newItemIds[index]];
+
+    onUpdateShowcase({
+      ...currentShowcase,
+      item_ids: newItemIds,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  // Reorders items by dropping one at an arbitrary target index (drag &
+  // drop), as opposed to handleMoveItemInShowcase which only swaps by one.
+  const handleReorderByDrag = (fromIndex: number, toIndex: number) => {
+    if (!currentShowcase || fromIndex === toIndex) return;
+    const newItemIds = [...currentShowcase.item_ids];
+    const [moved] = newItemIds.splice(fromIndex, 1);
+    newItemIds.splice(toIndex, 0, moved);
 
     onUpdateShowcase({
       ...currentShowcase,
@@ -921,7 +938,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {selectedItems.map((item, idx) => (
                   <div
                     key={item.id}
-                    className="relative shrink-0 w-24 sm:w-28 group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm"
+                    draggable
+                    onDragStart={() => setDraggedItemIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedItemIndex !== null) {
+                        handleReorderByDrag(draggedItemIndex, idx);
+                      }
+                      setDraggedItemIndex(null);
+                    }}
+                    onDragEnd={() => setDraggedItemIndex(null)}
+                    className={`relative shrink-0 w-24 sm:w-28 group rounded-xl overflow-hidden border bg-slate-50 shadow-sm cursor-grab active:cursor-grabbing transition-opacity ${
+                      draggedItemIndex === idx ? 'opacity-40 border-indigo-400' : 'border-slate-200'
+                    }`}
                   >
                     <img
                       src={item.thumb_small || item.thumb || ''}
@@ -959,6 +989,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                     <span className="absolute bottom-6 left-1 text-[9px] font-mono font-bold text-white bg-slate-900/70 px-1 rounded">
                       #{idx + 1}
+                    </span>
+                    <span className="absolute bottom-6 right-1 p-0.5 rounded bg-slate-900/70 text-white/70 opacity-0 group-hover:opacity-100 transition-all">
+                      <GripVertical className="w-2.5 h-2.5" />
                     </span>
                     <div className="p-1 text-[10px] font-space-grotesk text-slate-700 font-medium truncate">
                       {item.name}
