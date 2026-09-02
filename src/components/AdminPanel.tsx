@@ -36,6 +36,8 @@ import {
   savePortfolioTemplateToCloud,
   deletePortfolioTemplateFromCloud,
   bulkUpdateCustomItemsCategory,
+  getLastDriveSyncTime,
+  setLastDriveSyncTime,
 } from '../utils/storage';
 import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
 import {
@@ -166,12 +168,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         if (fid) existingFileIds.add(fid);
       });
 
-      const found: DriveScannedFile[] = await scanDriveForNewItems(token, existingFileIds, (msg) =>
-        setSyncStatusMessage(msg)
+      // Only ask Drive for files changed since the last successful sync —
+      // this is what makes repeat syncs fast instead of re-listing every
+      // file in every folder each time. First-ever sync has no timestamp
+      // yet, so it still does one full scan.
+      const lastSyncedAt = await getLastDriveSyncTime();
+      setSyncStatusMessage(
+        lastSyncedAt ? 'Checking for files added since your last sync...' : 'First sync — scanning everything...'
+      );
+      // Captured BEFORE scanning starts, so a file modified mid-scan still
+      // gets picked up next time rather than silently skipped.
+      const scanStartedAt = new Date().toISOString();
+
+      const found: DriveScannedFile[] = await scanDriveForNewItems(
+        token,
+        existingFileIds,
+        (msg) => setSyncStatusMessage(msg),
+        lastSyncedAt || undefined
       );
 
       if (found.length === 0) {
         setSyncResultMessage('Drive is already fully synced — no new files found.');
+        await setLastDriveSyncTime(scanStartedAt);
       } else {
         const newItems: PortfolioItem[] = found.map((f) => {
           const mediaType = detectMediaType(f.name, f.webViewLink);
@@ -191,6 +209,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           };
         });
         await onBulkAddItems(newItems);
+        await setLastDriveSyncTime(scanStartedAt);
         setSyncResultMessage(`Added ${newItems.length} new item${newItems.length === 1 ? '' : 's'} found in Drive — saved permanently, they won't be re-scanned next sync.`);
       }
     } catch (err: any) {

@@ -17,6 +17,8 @@ const CUSTOM_ITEMS_STORAGE_KEY = 'studio_portfolio_custom_items_v1';
 
 const SHOWCASES_COLLECTION = 'showcases';
 const CUSTOM_ITEMS_COLLECTION = 'customItems';
+const SETTINGS_COLLECTION = 'settings';
+const DRIVE_SYNC_DOC_ID = 'driveSync';
 
 // Firestore rejects any field explicitly set to `undefined` — strip them
 // before every write so optional fields (subcategory, ctaLink, etc.) don't
@@ -225,6 +227,36 @@ export async function saveCustomItemsToCloud(items: PortfolioItem[]): Promise<vo
   } catch (e) {
     console.error('Failed to batch-save custom items to Firestore', e);
     throw e;
+  }
+}
+
+/**
+ * Returns the ISO timestamp of the last successful "Sync from Drive" run,
+ * or null if it has never run before (first sync must scan everything).
+ * Stored in Firestore (not localStorage) so the "since" cutoff is shared
+ * across devices/browsers — syncing from a new machine won't re-scan
+ * everything that a different device already synced.
+ */
+export async function getLastDriveSyncTime(): Promise<string | null> {
+  try {
+    const snap = await getDoc(doc(db, SETTINGS_COLLECTION, DRIVE_SYNC_DOC_ID));
+    if (snap.exists()) {
+      return (snap.data().lastSyncedAt as string) || null;
+    }
+    return null;
+  } catch (e) {
+    console.error('Failed to read last Drive sync time', e);
+    return null;
+  }
+}
+
+/** Records the ISO timestamp of a successful "Sync from Drive" run. */
+export async function setLastDriveSyncTime(isoTimestamp: string): Promise<void> {
+  try {
+    await setDoc(doc(db, SETTINGS_COLLECTION, DRIVE_SYNC_DOC_ID), { lastSyncedAt: isoTimestamp });
+  } catch (e) {
+    console.error('Failed to save last Drive sync time', e);
+    // Non-fatal — worst case, the next sync just does a full re-scan again.
   }
 }
 

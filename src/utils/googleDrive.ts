@@ -418,12 +418,19 @@ export async function listSubfolders(
 
 /**
  * Lists supported media files (images, videos, PDFs) directly inside a folder.
+ * When `sinceISODate` is given, only files modified after that time are
+ * returned — this is what makes repeat syncs fast instead of re-listing
+ * every file in every folder each time.
  */
 export async function listFilesInFolder(
   token: string,
-  folderId: string
+  folderId: string,
+  sinceISODate?: string
 ): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }>> {
-  const query = `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
+  let query = `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
+  if (sinceISODate) {
+    query += ` and modifiedTime > '${sinceISODate}'`;
+  }
   const res = await fetch(
     `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,createdTime)&pageSize=1000`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -446,7 +453,8 @@ export async function listFilesInFolder(
 export async function scanDriveForNewItems(
   token: string,
   existingFileIds: Set<string>,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  sinceISODate?: string
 ): Promise<DriveScannedFile[]> {
   const folders = await listRootFolders(token);
   const results: DriveScannedFile[] = [];
@@ -457,7 +465,7 @@ export async function scanDriveForNewItems(
     // 1. Files directly inside the category folder
     let files: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }> = [];
     try {
-      files = await listFilesInFolder(token, folder.id);
+      files = await listFilesInFolder(token, folder.id, sinceISODate);
     } catch (e) {
       console.warn(`Could not scan folder "${folder.name}"`, e);
       files = [];
@@ -491,7 +499,7 @@ export async function scanDriveForNewItems(
       if (onProgress) onProgress(`Scanning "${folder.name}/${sub.name}" subfolder...`);
       let subFiles: Array<{ id: string; name: string; mimeType: string; webViewLink?: string; thumbnailLink?: string; createdTime?: string }> = [];
       try {
-        subFiles = await listFilesInFolder(token, sub.id);
+        subFiles = await listFilesInFolder(token, sub.id, sinceISODate);
       } catch (e) {
         console.warn(`Could not scan subfolder "${folder.name}/${sub.name}"`, e);
         continue;
