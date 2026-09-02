@@ -43,7 +43,7 @@ import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
 import {
   connectGoogleDriveAccount,
   scanDriveForNewItems,
-  clearDriveToken,
+  requestDriveAccessToken,
   DriveScannedFile,
 } from '../utils/googleDrive';
 import { CoverLetterTab } from './CoverLetterTab';
@@ -157,12 +157,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSyncResultMessage(null);
     setSyncStatusMessage('Connecting to Google Drive...');
     try {
-      // Force a fresh sign-in for sync so we always have the latest
-      // granted permissions (a previously cached token might only have
-      // the older, more limited permission and would silently miss files).
-      clearDriveToken();
-      const auth = await connectGoogleDriveAccount(true);
-      const token = auth.token;
+      // Reuse the cached token (and its permissions) if it's still valid —
+      // only prompt for login again once it has actually expired (~1 hour,
+      // a hard Google OAuth limit) or was never granted. Previously this
+      // force-cleared the token and re-prompted on every single sync.
+      let token: string;
+      try {
+        token = await requestDriveAccessToken();
+      } catch {
+        const auth = await connectGoogleDriveAccount(false);
+        token = auth.token;
+      }
 
       const existingFileIds = new Set<string>();
       allItems.forEach((item) => {
