@@ -230,6 +230,16 @@ export async function saveCustomItemsToCloud(items: PortfolioItem[]): Promise<vo
   }
 }
 
+/** Permanently deletes a custom item from the shared Firestore database. */
+export async function deleteCustomItemFromCloud(itemId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, CUSTOM_ITEMS_COLLECTION, itemId));
+  } catch (e) {
+    console.error('Failed to delete custom item from Firestore', e);
+    throw e;
+  }
+}
+
 /**
  * Returns the ISO timestamp of the last successful "Sync from Drive" run,
  * or null if it has never run before (first sync must scan everything).

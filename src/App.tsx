@@ -15,6 +15,7 @@ import {
   loadCustomItemsFromCloud,
   saveCustomItemToCloud,
   saveCustomItemsToCloud,
+  deleteCustomItemFromCloud,
   saveStoredCustomItems,
   getAllPortfolioItems,
 } from './utils/storage';
@@ -96,13 +97,17 @@ export default function App() {
   }, []);
 
   // Update showcases in state + shared Firestore database
-  const handleUpdateShowcase = (updated: Showcase) => {
+  const handleUpdateShowcase = async (updated: Showcase) => {
     const nextShowcases = {
       ...showcases,
       [updated.slug]: updated,
     };
     setShowcases(nextShowcases);
-    saveShowcaseToCloud(updated).catch(() => {});
+    try {
+      await saveShowcaseToCloud(updated);
+    } catch (e) {
+      console.error('Failed to save showcase update to cloud', e);
+    }
   };
 
   // Create new showcase
@@ -160,6 +165,28 @@ export default function App() {
     const nextCustom = [...newItems, ...updatedCatalog.filter((i) => i.custom)];
     saveStoredCustomItems(nextCustom);
     setAllItems([...newItems, ...updatedCatalog]);
+  };
+
+  // Permanently removes a custom item from the catalog (not just from one
+  // showcase) — deletes it from Firestore, local state, and strips its id
+  // out of every showcase's item_ids so no showcase is left pointing at a
+  // deleted item.
+  const handleDeleteCustomItem = async (itemId: string) => {
+    await deleteCustomItemFromCloud(itemId);
+
+    const updatedCatalog = getAllPortfolioItems().filter((i) => i.id !== itemId);
+    const nextCustom = updatedCatalog.filter((i) => i.custom);
+    saveStoredCustomItems(nextCustom);
+    setAllItems(updatedCatalog);
+
+    const affectedShowcases = Object.values<Showcase>(showcases).filter((sc) => sc.item_ids.includes(itemId));
+    for (const sc of affectedShowcases) {
+      await handleUpdateShowcase({
+        ...sc,
+        item_ids: sc.item_ids.filter((id) => id !== itemId),
+        updatedAt: new Date().toISOString(),
+      });
+    }
   };
 
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
@@ -237,6 +264,7 @@ export default function App() {
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
             onBulkAddItems={handleBulkAddItems}
+            onDeleteCustomItem={handleDeleteCustomItem}
           />
         )}
 

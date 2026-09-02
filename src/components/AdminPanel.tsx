@@ -73,6 +73,7 @@ interface AdminPanelProps {
   onOpenCustomItemModal: () => void;
   onOpenDownloadModal: () => void;
   onBulkAddItems: (items: PortfolioItem[]) => Promise<void>;
+  onDeleteCustomItem: (itemId: string) => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -88,6 +89,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenCustomItemModal,
   onOpenDownloadModal,
   onBulkAddItems,
+  onDeleteCustomItem,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -323,6 +325,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Moves the item at `index` earlier (direction -1) or later (direction 1)
   // in the showcase's item_ids order, which is exactly the order clients
   // see them rendered in (see ClientShowcaseView's showcaseItems).
+  const handlePermanentDeleteItem = async (item: PortfolioItem) => {
+    if (!confirm(`Permanently delete "${item.name}"? This removes it from the catalog and every showcase — it cannot be undone.`)) {
+      return;
+    }
+    try {
+      await onDeleteCustomItem(item.id);
+    } catch (e: any) {
+      alert(e?.message || 'Could not delete this item. Please try again.');
+    }
+  };
+
   const handleMoveItemInShowcase = (index: number, direction: -1 | 1) => {
     if (!currentShowcase) return;
     const targetIndex = index + direction;
@@ -1409,6 +1422,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <Check className="w-3 h-3" />
                       In Showcase
                     </span>
+                  )}
+
+                  {/* Permanent delete — only for custom items (Drive links /
+                      synced files), never the original static catalog. */}
+                  {item.custom && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePermanentDeleteItem(item);
+                      }}
+                      title="Delete permanently from catalog"
+                      className={`absolute right-2.5 p-1.5 rounded-lg bg-slate-900/80 hover:bg-rose-600 text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer ${
+                        inShowcase ? 'top-9' : 'top-2.5'
+                      }`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   )}
                 </div>
 
