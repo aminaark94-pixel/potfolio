@@ -299,6 +299,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
+  // Moves the item at `index` earlier (direction -1) or later (direction 1)
+  // in the showcase's item_ids order, which is exactly the order clients
+  // see them rendered in (see ClientShowcaseView's showcaseItems).
+  const handleMoveItemInShowcase = (index: number, direction: -1 | 1) => {
+    if (!currentShowcase) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= currentShowcase.item_ids.length) return;
+
+    const newItemIds = [...currentShowcase.item_ids];
+    [newItemIds[index], newItemIds[targetIndex]] = [newItemIds[targetIndex], newItemIds[index]];
+
+    onUpdateShowcase({
+      ...currentShowcase,
+      item_ids: newItemIds,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
   const handleAddAllOnPage = () => {
     if (!currentShowcase) return;
     const idsToAdd = paginatedItems.map((i) => i.id);
@@ -900,7 +918,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </p>
             ) : (
               <div className="flex gap-2.5 overflow-x-auto pb-2">
-                {selectedItems.map((item) => (
+                {selectedItems.map((item, idx) => (
                   <div
                     key={item.id}
                     className="relative shrink-0 w-24 sm:w-28 group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm"
@@ -917,6 +935,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       <X className="w-3 h-3" />
                     </button>
+
+                    {/* Reorder controls — moves this item earlier/later in
+                        the showcase's display sequence (item_ids order). */}
+                    <div className="absolute top-1 left-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => handleMoveItemInShowcase(idx, -1)}
+                        disabled={idx === 0}
+                        title="Move earlier"
+                        className="p-0.5 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveItemInShowcase(idx, 1)}
+                        disabled={idx === selectedItems.length - 1}
+                        title="Move later"
+                        className="p-0.5 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <span className="absolute bottom-6 left-1 text-[9px] font-mono font-bold text-white bg-slate-900/70 px-1 rounded">
+                      #{idx + 1}
+                    </span>
                     <div className="p-1 text-[10px] font-space-grotesk text-slate-700 font-medium truncate">
                       {item.name}
                     </div>
