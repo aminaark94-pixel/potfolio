@@ -3,14 +3,20 @@ import { PortfolioItem } from '../types/portfolio';
 // Utility to convert Google Drive URL to high-speed CDN thumbnail
 export function getDriveThumb(driveUrl: string | null, size: number = 800): string | null {
   if (!driveUrl) return null;
+  // Using =w{size} (fix WIDTH, height scales naturally) instead of =s{size}
+  // (fix the LONGEST side). For a very tall image like a stitched brand
+  // guide, =s800 would shrink its width down to ~80-100px to make the
+  // (much longer) height equal 800 — that's what caused the pixelation.
+  // =w{size} keeps every image's width at full resolution regardless of
+  // how long it runs, while square/logo images look identical either way.
   const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
-    return `https://lh3.googleusercontent.com/d/${match[1]}=s${size}`;
+    return `https://lh3.googleusercontent.com/d/${match[1]}=w${size}`;
   }
   if (driveUrl.includes('id=')) {
     const idMatch = driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
-      return `https://lh3.googleusercontent.com/d/${idMatch[1]}=s${size}`;
+      return `https://lh3.googleusercontent.com/d/${idMatch[1]}=w${size}`;
     }
   }
   return driveUrl;
