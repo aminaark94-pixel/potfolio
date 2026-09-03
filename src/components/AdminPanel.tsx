@@ -149,6 +149,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Drive Sync State
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [isRefreshingThumbs, setIsRefreshingThumbs] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string>('');
   const [syncResultMessage, setSyncResultMessage] = useState<string | null>(null);
 
@@ -226,6 +227,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setIsSyncingDrive(false);
       setSyncStatusMessage('');
       setTimeout(() => setSyncResultMessage(null), 6000);
+    }
+  };
+
+  // One-time migration button: regenerates thumb/thumb_small/thumb_large
+  // for every existing custom item using the current getDriveThumb logic.
+  // Needed because thumbnail URLs are stored (not recomputed live), so a
+  // fix to getDriveThumb only affects NEWLY added items until this runs.
+  const handleRefreshThumbnails = async () => {
+    const customItems = allItems.filter((i) => i.custom && i.drive_link);
+    if (customItems.length === 0) {
+      setSyncResultMessage('No custom items to refresh.');
+      return;
+    }
+    if (!confirm(`Regenerate thumbnails for ${customItems.length} existing item(s)? This fixes pixelation on long/tall images (like brand guides) that were added before the fix.`)) {
+      return;
+    }
+
+    setIsRefreshingThumbs(true);
+    setSyncResultMessage(null);
+    try {
+      const refreshed = customItems.map((item) => ({
+        ...item,
+        thumb: getDriveThumb(item.drive_link, 800) || item.thumb,
+        thumb_small: getDriveThumb(item.drive_link, 400) || item.thumb_small,
+        thumb_large: getDriveThumb(item.drive_link, 1400) || item.thumb_large,
+      }));
+      await onBulkAddItems(refreshed);
+      setSyncResultMessage(`Refreshed thumbnails for ${refreshed.length} item(s) — reload the showcase to see the fix.`);
+    } catch (err: any) {
+      console.error('Thumbnail refresh error', err);
+      setSyncResultMessage(err.message || 'Could not refresh thumbnails. Please try again.');
+    } finally {
+      setIsRefreshingThumbs(false);
     }
   };
 
@@ -548,6 +582,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           >
             <RefreshCw className={`w-4 h-4 text-emerald-300 ${isSyncingDrive ? 'animate-spin' : ''}`} />
             <span>{isSyncingDrive ? (syncStatusMessage || 'Syncing...') : 'Sync from Drive'}</span>
+          </button>
+
+          <button
+            onClick={handleRefreshThumbnails}
+            disabled={isRefreshingThumbs}
+            title="Fixes pixelated thumbnails on long/tall images (like brand guides) added before the thumbnail fix"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/30 hover:bg-amber-500/50 border border-white/20 text-white font-space-grotesk text-xs font-semibold transition-all hover:scale-105 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <RefreshCw className={`w-4 h-4 text-amber-300 ${isRefreshingThumbs ? 'animate-spin' : ''}`} />
+            <span>{isRefreshingThumbs ? 'Refreshing...' : 'Fix Pixelated Thumbnails'}</span>
           </button>
         </div>
       </div>
