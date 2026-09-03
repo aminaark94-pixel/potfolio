@@ -626,19 +626,34 @@ ${jobPostText}
 FEATURED MATCHED CASE STUDIES INCLUDED IN THE SHOWCASE (for context only — do not link or mention the URL, see instructions below):
 ${matchedProjectNames}
 
-STYLE REFERENCE — YOU MUST CLOSELY MIRROR THIS, NOT JUST ITS TONE:
+STYLE REFERENCE — mirror its VOICE and TONE only (word choice, energy, formality
+level). Do NOT copy its literal wording, headings, labels, or paragraph count —
+the fixed structure below overrides whatever shape this reference happens to have:
 """
 ${styleSampleText || `Hi Team,\n\nI saw your opening and immediately recognized an opportunity to bring high-impact design leadership to your team...`}
 """
 
 INSTRUCTIONS:
-1. Open with a short, casual, human-sounding greeting: start with "Hi," on its own, then ONE short,
-   natural question about their project — the kind a real freelancer would casually ask, NOT a long
-   formal multi-clause question. Keep it to one short sentence, conversational, not corporate.
-2. Treat the style reference above (${styleName || 'Custom Style'}) as a strict template for everything
-   AFTER the opening greeting: match its paragraph count, paragraph length, sentence rhythm, and
-   overall structure as closely as possible. Only change the actual content (names, projects,
-   requirements) — do not deviate from its format or invent a different structure.
+1. Write ONE single opening paragraph that flows as continuous text with NO line
+   break in between: start with a short casual greeting ("Hi," or "Hey there!!" —
+   match whatever energy the style reference uses) immediately followed, in the
+   very same paragraph, by ONE natural two-part question about their project —
+   offering the client two directions/options to choose between, the way a real
+   freelancer would casually ask. For example, in both structure and length:
+   "Hey there!! Do you already have a specific direction in mind for [the specific
+   deliverable], or would you like me to [alternative approach]?" — write this as
+   ONE sentence with two clauses joined by "or", specific to the actual project
+   (not generic), roughly 20-35 words. Never split the greeting and the question
+   onto separate lines or separate paragraphs.
+2. Immediately after that opening paragraph, write EXACTLY ONE additional
+   paragraph, starting with "Approach:", that briefly explains what you'll do
+   and how — this is the ONLY body paragraph. Do not write a second, third, or
+   fourth paragraph no matter how long the style reference's own body is —
+   compress everything into that single paragraph. Do not add a category label,
+   heading, or all-caps tag line anywhere (e.g. never output something like
+   "ARABIC THUMBNAIL" on its own line) — only the greeting+question paragraph,
+   then the Approach paragraph, then (per instruction 4) go straight to the
+   closing sentence and sign-off.
 3. Specifically address the core pain points and requirements mentioned in the job post.
 4. Do NOT mention, embed, link to, or list the showcase/portfolio anywhere in your text — this
    includes writing any URL or markdown link syntax like [text](url), AND it includes writing any
@@ -658,7 +673,7 @@ INSTRUCTIONS:
 7. Output ONLY the raw cover letter text ready to copy-paste. No preamble, no quotes around the whole text, no markdown backtick wrapper.`;
 
     const coverMessages = [
-      { role: "system", content: "You are an elite creative director and professional copywriter. You strictly mirror the structure of any style reference you are given." },
+      { role: "system", content: "You are an elite creative director and professional copywriter. You follow the exact structural instructions given to you, and mirror a style reference's voice and tone only — never its literal wording or paragraph count." },
       { role: "user", content: coverLetterPrompt }
     ];
 
