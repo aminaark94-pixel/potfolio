@@ -99,13 +99,18 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
   // 4. Recent Results History — persisted to localStorage
   const [recentResults, setRecentResults] = useState<CoverLetterGenerationResult[]>([]);
 
-  // Load history from localStorage on mount
+  // Load history from localStorage on mount AND restore the latest result
   useEffect(() => {
     try {
       const stored = localStorage.getItem('coverLetterHistory');
       if (stored) {
         const parsed = JSON.parse(stored);
-        setRecentResults(Array.isArray(parsed) ? parsed : []);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecentResults(parsed);
+          // IMPORTANT: Also restore the latest result so it displays immediately
+          setResult(parsed[0]);
+          setEditableLetter(parsed[0].coverLetter);
+        }
       }
     } catch (err) {
       console.error('Failed to load cover letter history:', err);
