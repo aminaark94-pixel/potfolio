@@ -4,7 +4,6 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeConfig } from '../types/portfolio';
 
@@ -15,17 +14,11 @@ interface AnimatedMosaicHeroProps {
   onScrollToGallery: () => void;
 }
 
-// CSS-grid spans (not absolute percentage positions) so images always tile
-// together with no dead gaps, regardless of viewport size. Each entry also
-// has its own parallax "depth" so bigger tiles drift less than small ones.
-const MOSAIC_SLOTS = [
-  { span: 'col-span-3 row-span-4', depth: 10 },
-  { span: 'col-span-3 row-span-3', depth: 18 },
-  { span: 'col-span-2 row-span-3', depth: 14 },
-  { span: 'col-span-4 row-span-3', depth: 22 },
-  { span: 'col-span-3 row-span-3', depth: 16 },
-  { span: 'col-span-3 row-span-3', depth: 12 },
-];
+// Simple, deliberately bullet-proof 2x2 grid — no CSS grid row/col spanning
+// (which can mis-pack unpredictably), no scale/zoom on the images (which
+// was cropping content oddly). Each tile has its own parallax depth so
+// they don't all move in lockstep.
+const DEPTHS = [10, 16, 14, 20];
 
 export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
   showcase,
@@ -35,6 +28,15 @@ export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mouse, setMouse] = useState({ x: 0, y: 0 }); // -1..1 range from center
+  const [hasEntered, setHasEntered] = useState(false);
+
+  React.useEffect(() => {
+    // Fade content in shortly after mount — a plain CSS transition, not an
+    // animation library, so there is no risk of it ever getting stuck
+    // invisible (which happened with the previous Framer Motion version).
+    const t = setTimeout(() => setHasEntered(true), 30);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -44,23 +46,16 @@ export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
     setMouse({ x, y });
   };
 
-  const images = featuredItems.slice(0, MOSAIC_SLOTS.length);
+  const images = featuredItems.slice(0, 4);
 
   return (
-    <div
-      // Height is intentionally short of a full screen (not 100vh, no
-      // vertical centering that stretches content into empty space) so a
-      // slice of the actual gallery is visible in the viewport on load —
-      // the whole point is the visitor sees it's a gallery, not just this.
-      className="relative w-full h-[62vh] sm:h-[68vh] overflow-hidden px-4 sm:px-6 lg:px-10 pt-2 pb-4"
-    >
-      <div className="relative max-w-7xl mx-auto h-full grid lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-        {/* Side text */}
-        <motion.div
-          initial={{ opacity: 0, x: -24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-30 flex flex-col justify-center space-y-4 max-w-xl"
+    <div className="relative w-full h-[62vh] sm:h-[68vh] overflow-hidden px-4 sm:px-6 lg:px-10 pt-2 pb-4">
+      <div className="relative max-w-7xl mx-auto h-full grid lg:grid-cols-2 gap-6 lg:gap-10 items-center">
+        {/* Side text — always rendered, opacity is plain CSS so it can
+            never get stuck invisible. */}
+        <div
+          className="relative z-30 flex flex-col justify-center space-y-4 max-w-xl transition-opacity duration-700"
+          style={{ opacity: hasEntered ? 1 : 0 }}
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-space-mono uppercase font-bold tracking-wider glass-chip glass-text-secondary w-fit">
             Curated Portfolio Showcase
@@ -86,36 +81,26 @@ export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
               {showcase.tagline}
             </p>
           )}
-        </motion.div>
+        </div>
 
-        {/* Parallax image mosaic — CSS grid, so tiles always fit together
-            with no gaps. Mouse tracking lives on this outer container;
-            each tile's OWN inner wrapper (not the fade-in motion.div)
-            gets the parallax transform, so the two animations never
-            fight over the same element's transform. */}
+        {/* Simple bullet-proof 2x2 image grid with gentle parallax drift */}
         <div
           ref={containerRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setMouse({ x: 0, y: 0 })}
-          className="relative h-full w-full grid grid-cols-8 grid-rows-6 gap-3"
+          className="relative h-full w-full grid grid-cols-2 grid-rows-2 gap-3 sm:gap-4"
         >
           {images.map((item, i) => {
-            const slot = MOSAIC_SLOTS[i];
             const thumb = item.thumb_large || item.thumb || item.thumb_small || '';
             return (
-              <motion.div
+              <div
                 key={item.id}
-                initial={{ opacity: 0, scale: 0.94 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.06 * i }}
-                className={`${slot.span} rounded-2xl overflow-hidden shadow-2xl glass-hairline`}
+                className="relative rounded-2xl overflow-hidden shadow-2xl glass-hairline transition-opacity duration-700"
+                style={{ opacity: hasEntered ? 1 : 0, transitionDelay: `${i * 80}ms` }}
               >
-                {/* Inner wrapper owns the parallax transform exclusively —
-                    kept separate from the motion.div above so Framer
-                    Motion's own transform animation never overwrites it. */}
                 <div
                   className="w-full h-full transition-transform duration-200 ease-out will-change-transform"
-                  style={{ transform: `translate(${mouse.x * slot.depth}px, ${mouse.y * slot.depth}px) scale(1.08)` }}
+                  style={{ transform: `translate(${mouse.x * DEPTHS[i]}px, ${mouse.y * DEPTHS[i]}px)` }}
                 >
                   {thumb ? (
                     <img src={thumb} alt={item.name} className="w-full h-full object-cover" />
@@ -123,7 +108,7 @@ export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
                     <div className="w-full h-full" style={{ background: theme.gradientFrom }} />
                   )}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
@@ -136,12 +121,7 @@ export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({
         title="Scroll to gallery"
       >
         <span className="text-[9px] font-space-mono uppercase tracking-widest">Gallery below</span>
-        <motion.span
-          animate={{ y: [0, 5, 0] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </motion.span>
+        <ChevronDown className="w-3.5 h-3.5 animate-bounce" />
       </button>
     </div>
   );
