@@ -997,10 +997,74 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="block font-normal opacity-80 text-[10px] mt-0.5">Parallax image grid, gallery peeks below</span>
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400">
-                  Auto-features the first 6 items in this showcase for now — picking exactly which images show is coming soon.
-                </p>
+                {currentShowcase.heroTemplate !== 'animated-mosaic' && (
+                  <p className="text-[10px] text-slate-400">
+                    Select "Animated Mosaic" to choose which images appear in it.
+                  </p>
+                )}
               </div>
+
+              {currentShowcase.heroTemplate === 'animated-mosaic' && (
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-space-grotesk font-semibold text-slate-700">
+                      Hero Collage Images
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {(currentShowcase.heroImageIds?.length || 0)} of 4 selected
+                      </span>
+                      {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
+                          className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          Reset to Auto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mb-1">
+                    Tap up to 4 images from this showcase to feature in the collage. Leave empty to auto-pick the first 4.
+                  </p>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {selectedItems.map((item) => {
+                      const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
+                      const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 4;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={!chosen && atLimit}
+                          onClick={() => {
+                            const current = currentShowcase.heroImageIds || [];
+                            const next = chosen
+                              ? current.filter((id) => id !== item.id)
+                              : [...current, item.id];
+                            onUpdateShowcase({ ...currentShowcase, heroImageIds: next });
+                          }}
+                          title={item.name}
+                          className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                            chosen ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <img
+                            src={item.thumb_small || item.thumb || ''}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                          {chosen && (
+                            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700 flex items-center gap-1">
