@@ -96,6 +96,58 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [editableLetter, setEditableLetter] = useState('');
 
+  // 4. Recent Results History — persisted to localStorage
+  const [recentResults, setRecentResults] = useState<CoverLetterGenerationResult[]>([]);
+
+  // Load history from localStorage on mount AND restore the latest result
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('coverLetterHistory');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecentResults(parsed);
+          // IMPORTANT: Also restore the latest result so it displays immediately
+          setResult(parsed[0]);
+          setEditableLetter(parsed[0].coverLetter);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load cover letter history:', err);
+    }
+  }, []);
+
+  // Save result to history whenever it changes
+  useEffect(() => {
+    if (result) {
+      const updated = [result, ...recentResults].slice(0, 5); // Keep last 5
+      setRecentResults(updated);
+      try {
+        localStorage.setItem('coverLetterHistory', JSON.stringify(updated));
+      } catch (err) {
+        console.error('Failed to save cover letter history:', err);
+      }
+    }
+  }, [result]);
+
+  // Clear all history
+  const handleClearAllHistory = () => {
+    if (confirm('Are you sure you want to clear all saved cover letter history? This cannot be undone.')) {
+      setRecentResults([]);
+      try {
+        localStorage.removeItem('coverLetterHistory');
+      } catch (err) {
+        console.error('Failed to clear history:', err);
+      }
+    }
+  };
+
+  // Restore a result from history
+  const handleRestoreFromHistory = (historyResult: CoverLetterGenerationResult) => {
+    setResult(historyResult);
+    setEditableLetter(historyResult.coverLetter);
+  };
+
   // Initial Load
   useEffect(() => {
     async function init() {
@@ -739,6 +791,77 @@ Key Requirements:
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* RECENT RESULTS HISTORY */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {recentResults.length > 0 && (
+          <div className="mt-10 pt-8 border-t border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-widest mb-1">
+                <RefreshCw className="w-4 h-4" />
+                Recent Results
+              </div>
+              <button
+                type="button"
+                onClick={handleClearAllHistory}
+                className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Clear All
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Last {recentResults.length} generated cover letters. Click any to restore.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              {recentResults.map((histResult, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleRestoreFromHistory(histResult)}
+                  className={`text-left p-3.5 rounded-xl border-2 transition-all hover:shadow-xs ${
+                    result?.showcaseLink === histResult.showcaseLink
+                      ? 'border-indigo-500 bg-indigo-50/50'
+                      : 'border-slate-200 bg-white hover:border-indigo-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-sm font-bold text-slate-900 truncate">
+                        {histResult.showcaseHeading || 'Unnamed Opportunity'}
+                      </h5>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                        {histResult.matchedItems.length} items
+                        {histResult.templateUsed && (
+                          <span className="text-emerald-600 font-semibold ml-1">
+                            • {histResult.templateUsed}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {result?.showcaseLink === histResult.showcaseLink && (
+                      <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded shrink-0">
+                        Active
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 font-mono truncate">
+                    {histResult.showcaseLink}
+                  </p>
+
+                  {histResult.clientNameDetected && (
+                    <p className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded mt-1.5 inline-block">
+                      Client: {histResult.clientNameDetected}
+                    </p>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         )}

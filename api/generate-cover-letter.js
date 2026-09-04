@@ -65,22 +65,63 @@ function findBestTemplateMatch(jobPostText, templates) {
 }
 
 /**
- * Local keyword overlap matching algorithm (fallback / top-up).
- * Returns ids sorted best-first — caller decides how many to keep.
+ * Enhanced local keyword matching with category awareness.
+ * Returns ids sorted best-first with matching categories prioritized.
+ * 
+ * Algorithm:
+ * 1. Extract category keywords from job post
+ * 2. Score items WITH matching categories FIRST (100+ point boost)
+ * 3. Within matching categories, score by keyword relevance
+ * 4. Only use non-matching categories as fallback
  */
 function localKeywordMatching(jobPostText, portfolioItems) {
   const text = (jobPostText || '').toLowerCase();
+  
+  // Get all unique categories in the portfolio
+  const allCategories = [...new Set(portfolioItems.map(i => i.category).filter(Boolean))];
+  
+  // Extract which categories appear in the job post text
+  const matchingCategories = new Set();
+  allCategories.forEach(cat => {
+    const catLower = cat.toLowerCase();
+    const catWords = catLower.split(/\s+/);
+    
+    // Check if category name or its key words appear in job post
+    if (text.includes(catLower)) {
+      matchingCategories.add(cat);
+    } else {
+      // Check individual words (e.g., "editorial" from "Editorial & Publishing")
+      const hasWordMatch = catWords.some(word => {
+        return word.length > 2 && text.includes(word);
+      });
+      if (hasWordMatch) {
+        matchingCategories.add(cat);
+      }
+    }
+  });
+
+  // Score each item
   const scored = portfolioItems.map(item => {
     let score = 0;
+    const itemCategory = item.category || '';
+    
+    // CATEGORY MATCHING BONUS: +100 if category matches job post
+    const categoryMatches = matchingCategories.has(itemCategory);
+    if (categoryMatches) {
+      score += 100;
+    }
+    
+    // KEYWORD SCORING: score based on item's keywords, category, subcategory, name
     const combinedTerms = [
       ...(item.keywords || []),
-      item.category || '',
+      itemCategory || '',
       item.subcategory || '',
       item.name || ''
     ].map(t => t.toLowerCase());
 
     combinedTerms.forEach(term => {
       if (!term || term.length < 2) return;
+      
       if (text.includes(term)) {
         score += 3;
       } else {
@@ -93,10 +134,19 @@ function localKeywordMatching(jobPostText, portfolioItems) {
       }
     });
 
-    return { item, score };
+    return { item, score, categoryMatches };
   });
 
-  scored.sort((a, b) => b.score - a.score);
+  // Sort: matching categories first (by score), then non-matching categories (by score)
+  scored.sort((a, b) => {
+    // Primary sort: category match status (matching categories come first)
+    if (a.categoryMatches !== b.categoryMatches) {
+      return a.categoryMatches ? -1 : 1;
+    }
+    // Secondary sort: score (highest first)
+    return b.score - a.score;
+  });
+
   return scored.map(s => s.item.id);
 }
 
@@ -416,20 +466,33 @@ Return ONLY a valid JSON object:
       : `You are an expert design director and talent matcher for a creative studio.
 Read the job post below carefully and do three things:
 
-1. Select the ${MIN_ITEMS} to ${MAX_ITEMS} MOST relevant portfolio items from the catalog, based on
-   matching the job's required skills, deliverables, tools, and industry against each item's
-   category/subcategory/keywords. You MUST return at least ${MIN_ITEMS} ids if the catalog has that
-   many items — pick the closest matches even if the match isn't perfect, never return fewer than
-   ${MIN_ITEMS} unless the catalog itself has fewer than ${MIN_ITEMS} items total.
+1. Select the ${MIN_ITEMS} to ${MAX_ITEMS} MOST relevant portfolio items from the catalog. CRITICAL MATCHING PRIORITY:
+   
+   PRIORITY 1 (Highest): Match the CATEGORY field first. Look for portfolio items whose category 
+   names match or closely align with the job's primary design discipline/deliverable. For example:
+   - If job mentions "Editorial design" or "magazine layout" → prioritize "Editorial & Publishing" category items
+   - If job mentions "packaging" or "box design" → prioritize "Packaging" category items
+   - If job mentions "branding" or "logo" → prioritize "Branding & Identity" or similar category items
+   
+   PRIORITY 2: Within matching categories, score by keywords and required skills/tools/industry mentioned in the job post.
+   
+   PRIORITY 3: Only if insufficient items in matching categories, supplement with high-scoring items from other categories.
+   
+   You MUST return at least ${MIN_ITEMS} ids if the catalog has that many items — pick the closest matches 
+   even if the match isn't perfect, never return fewer than ${MIN_ITEMS} unless the catalog itself has 
+   fewer than ${MIN_ITEMS} items total. Always prioritize matching categories over cross-category matches.
+
 2. Extract two separate facts from the job post text:
    - "client_name": the actual hiring company/client/brand name IF the job post explicitly names one
      (e.g. "NexaPay Technologies", "Acme Studio"). If no real company/client name is mentioned
      anywhere in the text, set this to null — do NOT invent or guess a name.
    - "job_title": the role/position title being hired for (e.g. "Senior Product Designer"). Always
      provide your best guess for this even if client_name is null.
+
 3. Write a short, confident professional title describing the applicant AS AN EXPERT IN THIS SPECIFIC
    JOB'S DISCIPLINE — this is NOT the client's job title, it's how the applicant should present
-   themselves for this kind of work. Examples: a branding/logo job → "Top-Rated Graphic & Brand
+   themselves for this kind of work. Examples: an Editorial design job → "Editorial & Publication Design Specialist"; 
+   a packaging job → "Packaging & Product Design Specialist"; a branding/logo job → "Top-Rated Graphic & Brand
    Identity Design Specialist"; an Instagram/social content job → "Instagram Visual Content & Social
    Media Design Specialist"; a UI/UX job → "Senior UI/UX Product Designer". Put this in "specialist_title".
 
@@ -438,7 +501,7 @@ JOB POST:
 ${jobPostText.substring(0, 4000)}
 """
 
-AVAILABLE PORTFOLIO ITEMS CATALOG (${portfolioItems.length} items total):
+AVAILABLE PORTFOLIO ITEMS CATALOG (${portfolioItems.length} items total, organized by category):
 ${JSON.stringify(catalog, null, 2)}
 
 Return ONLY a valid JSON object in this exact format:
