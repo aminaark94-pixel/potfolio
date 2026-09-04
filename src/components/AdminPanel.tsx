@@ -967,6 +967,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
 
+              <div className="space-y-2 sm:col-span-2">
+                <label className="block font-space-grotesk font-semibold text-slate-700">
+                  Hero Template
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'classic' })}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                      (currentShowcase.heroTemplate || 'classic') === 'classic'
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Classic
+                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">The current hero — safe default</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'animated-mosaic' })}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                      currentShowcase.heroTemplate === 'animated-mosaic'
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Animated Mosaic
+                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">Parallax image grid, gallery peeks below</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Auto-features the first 6 items in this showcase for now — picking exactly which images show is coming soon.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700 flex items-center gap-1">
                   <Lock className="w-3 h-3 text-amber-500" />

@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeConfig, ClientFeedback } from '../types/portfolio';
+import { AnimatedMosaicHero } from './AnimatedMosaicHero';
 import { THEMES } from '../data/themes';
 import { generateStandaloneHTML } from '../utils/storage';
 import confetti from 'canvas-confetti';
@@ -57,6 +58,14 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
   const showcaseItems = showcase.item_ids
     .map((id) => allItems.find((it) => it.id === id))
     .filter(Boolean) as PortfolioItem[];
+
+  // Items to feature in the animated-mosaic hero: explicit picks if set,
+  // otherwise auto-pick the first 5-8 from the showcase itself.
+  const heroFeaturedItems = showcase.heroImageIds && showcase.heroImageIds.length > 0
+    ? (showcase.heroImageIds.map((id) => allItems.find((it) => it.id === id)).filter(Boolean) as PortfolioItem[])
+    : showcaseItems.slice(0, 6);
+
+  const galleryRef = React.useRef<HTMLElement>(null);
 
   // Get available categories in this showcase
   const categories = ['All', ...Array.from(new Set(showcaseItems.map((i) => i.category)))];
@@ -303,6 +312,18 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       {/* Spacer */}
       <div className="h-20 sm:h-24"></div>
 
+      {/* Hero — new animated mosaic template (opt-in per showcase) or the
+          original hero, rendered completely unchanged for every existing
+          showcase that hasn't picked the new one. */}
+      {showcase.heroTemplate === 'animated-mosaic' ? (
+        <AnimatedMosaicHero
+          showcase={showcase}
+          featuredItems={heroFeaturedItems}
+          theme={theme}
+          onScrollToGallery={() => galleryRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        />
+      ) : (
+      <>
       {/* Hero Presentation Slab */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
         <div className="relative shine-sweep max-w-4xl rounded-[2rem] glass-surface-strong px-6 py-8 sm:px-10 sm:py-12 overflow-hidden">
@@ -370,6 +391,8 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
           </div>
         </div>
       </section>
+      </>
+      )}
 
       {/* Category Tabs Filter */}
       {categories.length > 2 && (
@@ -407,7 +430,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       )}
 
       {/* Main Showcase Gallery (Masonry Layout) */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+      <main ref={galleryRef} className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
         {showcaseItems.length === 0 ? (
           <div className="p-12 sm:p-20 text-center rounded-3xl glass-surface space-y-4">
             <Layers className="w-12 h-12 mx-auto glass-text-muted" />

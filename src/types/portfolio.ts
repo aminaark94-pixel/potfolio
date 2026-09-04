@@ -71,6 +71,14 @@ export interface Showcase {
   // 'grouped' shows separate sections per category with headers, 'flow'
   // shows every item together in one continuous gallery.
   layoutMode?: 'grouped' | 'flow';
+  // Which hero design to show at the top of the client page. Undefined/
+  // 'classic' = the original hero (unchanged, safe default for every
+  // existing showcase). 'animated-mosaic' = new mouse-parallax image
+  // mosaic hero with a peek of the gallery below.
+  heroTemplate?: 'classic' | 'animated-mosaic';
+  // Which items (by id) to feature in the animated-mosaic hero. If empty/
+  // undefined, the hero auto-picks the first 5-8 items from item_ids.
+  heroImageIds?: string[];
   feedback?: Record<string, ClientFeedback>;
   createdAt: string;
   updatedAt: string;
