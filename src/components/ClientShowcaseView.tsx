@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeConfig, ClientFeedback } from '../types/portfolio';
 import { AnimatedMosaicHero } from './AnimatedMosaicHero';
+import { ParallaxScrollGallery } from './ParallaxScrollGallery';
 import { THEMES } from '../data/themes';
 import { generateStandaloneHTML } from '../utils/storage';
 import confetti from 'canvas-confetti';
@@ -441,6 +442,12 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               Open the Studio Hub tab in the navbar above to search and curate design items for this client showcase.
             </p>
           </div>
+        ) : showcase.galleryTemplate === 'parallax-scroll' ? (
+          <ParallaxScrollGallery
+            items={filteredItems}
+            theme={theme}
+            onOpenLightbox={onOpenLightbox}
+          />
         ) : (
           <div className="space-y-12">
             {/* If a specific category is chosen, OR the showcase is set to

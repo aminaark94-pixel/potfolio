@@ -79,6 +79,11 @@ export interface Showcase {
   // Which items (by id) to feature in the animated-mosaic hero. If empty/
   // undefined, the hero auto-picks the first 5-8 items from item_ids.
   heroImageIds?: string[];
+  // Which gallery layout renders the main "All items" grid below the hero.
+  // Undefined/'masonry' = the original grid (unchanged, safe default for
+  // every existing showcase). 'parallax-scroll' = new 2-column staggered
+  // grid where each image parallax-shifts within its frame as you scroll.
+  galleryTemplate?: 'masonry' | 'parallax-scroll';
   feedback?: Record<string, ClientFeedback>;
   createdAt: string;
   updatedAt: string;
