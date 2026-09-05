@@ -63,7 +63,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
   // otherwise auto-pick the first 5-8 from the showcase itself.
   const heroFeaturedItems = showcase.heroImageIds && showcase.heroImageIds.length > 0
     ? (showcase.heroImageIds.map((id) => allItems.find((it) => it.id === id)).filter(Boolean) as PortfolioItem[])
-    : showcaseItems.slice(0, 6);
+    : showcaseItems.slice(0, 7);
 
   const galleryRef = React.useRef<HTMLElement>(null);
 

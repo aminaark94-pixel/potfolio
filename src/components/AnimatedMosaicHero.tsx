@@ -13,7 +13,7 @@ interface AnimatedMosaicHeroProps {
   onScrollToGallery: () => void;
 }
 
-// Layout for each of the 4 photo slots: position/size (as % of the collage
+// Layout for each of the 7 photo slots: position/size (as % of the collage
 // box), a drag "speed" multiplier (how far it travels relative to the
 // pointer), and whether it's shown in grayscale — ported directly from the
 // reference design so the collage keeps its exact asymmetric, layered look
@@ -23,6 +23,9 @@ const SLOTS = [
   { left: '30%', top: '3%', width: '33%', height: '68%', speed: 1, grayscale: false },
   { left: '-1%', top: '38%', width: '33%', height: '60%', speed: 0.8, grayscale: false },
   { left: '36%', top: '66%', width: '33%', height: '29%', speed: 1.25, grayscale: true },
+  { left: '66%', top: '4%', width: '32%', height: '34%', speed: 0.9, grayscale: false },
+  { left: '68%', top: '42%', width: '30%', height: '32%', speed: 1.15, grayscale: true },
+  { left: '64%', top: '76%', width: '28%', height: '20%', speed: 0.65, grayscale: false },
 ];
 
 export const AnimatedMosaicHero: React.FC<AnimatedMosaicHeroProps> = ({

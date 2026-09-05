@@ -1012,7 +1012,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </label>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-slate-400 font-mono">
-                        {(currentShowcase.heroImageIds?.length || 0)} of 4 selected
+                        {(currentShowcase.heroImageIds?.length || 0)} of 7 selected
                       </span>
                       {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
                         <button
@@ -1026,12 +1026,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-400 mb-1">
-                    Tap up to 4 images from this showcase to feature in the collage. Leave empty to auto-pick the first 4.
+                    Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.
                   </p>
                   <div className="flex gap-2 overflow-x-auto pb-2">
                     {selectedItems.map((item) => {
                       const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
-                      const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 4;
+                      const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 7;
                       return (
                         <button
                           key={item.id}
