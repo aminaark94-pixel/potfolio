@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Tag, Trash2, Edit3, FolderPlus, Sparkles, X, Save } from 'lucide-react';
+import { Layers, Tag, Trash2, Edit3, FolderPlus, Sparkles, X, Save, Eye, Share2, Check } from 'lucide-react';
 import { PortfolioTemplate, PortfolioItem, Showcase, ThemeId } from '../types/portfolio';
 import { savePortfolioTemplateToCloud, deletePortfolioTemplateFromCloud, slugify } from '../utils/storage';
 
@@ -21,6 +21,10 @@ export const PortfolioTemplatesLibrary: React.FC<PortfolioTemplatesLibraryProps>
   const [editTags, setEditTags] = useState('');
   const [quickCreateId, setQuickCreateId] = useState<string | null>(null);
   const [quickCreateName, setQuickCreateName] = useState('');
+  
+  // Track recently created showcase for Launch/Copy Link buttons
+  const [justCreatedShowcase, setJustCreatedShowcase] = useState<Showcase | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const itemsById = React.useMemo(() => {
     const map = new Map<string, PortfolioItem>();
@@ -69,8 +73,24 @@ export const PortfolioTemplatesLibrary: React.FC<PortfolioTemplatesLibraryProps>
       updatedAt: new Date().toISOString(),
     };
     onCreateShowcase(newShowcase);
+    setJustCreatedShowcase(newShowcase);
     setQuickCreateId(null);
     setQuickCreateName('');
+  };
+
+  // Launch client view in new tab
+  const handleLaunchClientView = (showcase: Showcase) => {
+    const url = `${window.location.origin}/#showcase=${showcase.slug}`;
+    window.open(url, '_blank');
+  };
+
+  // Copy showcase link to clipboard
+  const handleCopyShowcaseLink = (showcase: Showcase) => {
+    const url = `${window.location.origin}/#showcase=${showcase.slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    });
   };
 
   if (templates.length === 0) {
@@ -196,6 +216,28 @@ export const PortfolioTemplatesLibrary: React.FC<PortfolioTemplatesLibraryProps>
                         Create Showcase
                       </button>
                     )}
+                    
+                    {/* Show Launch & Copy buttons if this template's showcase was just created */}
+                    {justCreatedShowcase && justCreatedShowcase.item_ids.length === t.item_ids.length && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleLaunchClientView(justCreatedShowcase)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold cursor-pointer"
+                          title="Open showcase in new tab"
+                        >
+                          <Eye className="w-3 h-3" /> Launch
+                        </button>
+                        <button
+                          onClick={() => handleCopyShowcaseLink(justCreatedShowcase)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-[11px] font-semibold cursor-pointer"
+                          title="Copy showcase link"
+                        >
+                          {copiedLink ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                          {copiedLink ? 'Copied' : 'Copy Link'}
+                        </button>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(t)}
