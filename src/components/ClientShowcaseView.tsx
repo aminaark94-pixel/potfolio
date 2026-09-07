@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeConfig, ClientFeedback } from '../types/portfolio';
 import { AnimatedMosaicHero } from './AnimatedMosaicHero';
+import { Curved3DHero } from './Curved3DHero';
 import { ParallaxScrollGallery } from './ParallaxScrollGallery';
 import { THEMES } from '../data/themes';
 import { generateStandaloneHTML } from '../utils/storage';
@@ -318,6 +319,13 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
           showcase that hasn't picked the new one. */}
       {showcase.heroTemplate === 'animated-mosaic' ? (
         <AnimatedMosaicHero
+          showcase={showcase}
+          featuredItems={heroFeaturedItems}
+          theme={theme}
+          onScrollToGallery={() => galleryRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        />
+      ) : showcase.heroTemplate === 'curved-3d' ? (
+        <Curved3DHero
           showcase={showcase}
           featuredItems={heroFeaturedItems}
           theme={theme}

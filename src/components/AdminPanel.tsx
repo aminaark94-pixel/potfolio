@@ -102,7 +102,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newTheme, setNewTheme] = useState<ThemeId>('rust');
 
   // Top-level section switcher: Showcases workspace vs Cover Letter generator vs Templates
-  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter' | 'templates' | 'drivelinks'>('showcases');
+  const [activeSection, setActiveSection] = useState<'showcases' | 'coverletter' | 'templates' | 'drivelinks' | 'design'>('showcases');
 
   // Bulk-select state for the manual catalog picker
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -496,6 +496,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           Drive Links
         </button>
+        <button
+          onClick={() => setActiveSection('design')}
+          className={`px-4 py-2 rounded-xl text-xs font-space-grotesk font-bold transition-all cursor-pointer ${
+            activeSection === 'design'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Hero & Gallery
+        </button>
       </div>
 
       {activeSection === 'drivelinks' && (
@@ -538,6 +548,169 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             setActiveSection('showcases');
           }}
         />
+      )}
+
+      {activeSection === 'design' && (
+        currentShowcase ? (
+          <div className="bg-white rounded-[28px] border border-slate-200 p-6 sm:p-8 space-y-8 shadow-xs">
+            <div>
+              <h2 className="font-archivo text-xl sm:text-2xl text-slate-900 tracking-tight">
+                Hero &amp; Gallery Templates
+              </h2>
+              <p className="text-xs sm:text-sm font-space-grotesk text-slate-500 mt-1 max-w-xl">
+                Editing templates for <span className="font-bold text-indigo-600">{currentShowcase.brand_name || currentShowcase.heading}</span>.
+                Everything here defaults to the current, already-safe look — change it only if you want to.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block font-space-grotesk font-semibold text-slate-700">
+                Gallery Template
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onUpdateShowcase({ ...currentShowcase, galleryTemplate: 'masonry' })}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                    (currentShowcase.galleryTemplate || 'masonry') === 'masonry'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Masonry Grid
+                  <span className="block font-normal opacity-80 text-[10px] mt-0.5">The current grid — safe default</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateShowcase({ ...currentShowcase, galleryTemplate: 'parallax-scroll' })}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                    currentShowcase.galleryTemplate === 'parallax-scroll'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Parallax Scroll
+                  <span className="block font-normal opacity-80 text-[10px] mt-0.5">2-column staggered, images shift as you scroll</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block font-space-grotesk font-semibold text-slate-700">
+                Hero Template
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'classic' })}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                    (currentShowcase.heroTemplate || 'classic') === 'classic'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Classic
+                  <span className="block font-normal opacity-80 text-[10px] mt-0.5">The current hero — safe default</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'animated-mosaic' })}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                    currentShowcase.heroTemplate === 'animated-mosaic'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Animated Mosaic
+                  <span className="block font-normal opacity-80 text-[10px] mt-0.5">Parallax image grid, gallery peeks below</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'curved-3d' })}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                    currentShowcase.heroTemplate === 'curved-3d'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Curved 3D Slider
+                  <span className="block font-normal opacity-80 text-[10px] mt-0.5">Drag-through 3D carousel, mirror reflection</span>
+                </button>
+              </div>
+              {currentShowcase.heroTemplate !== 'animated-mosaic' && currentShowcase.heroTemplate !== 'curved-3d' && (
+                <p className="text-[10px] text-slate-400">
+                  Select "Animated Mosaic" or "Curved 3D Slider" to choose which images appear in it.
+                </p>
+              )}
+            </div>
+
+            {(currentShowcase.heroTemplate === 'animated-mosaic' || currentShowcase.heroTemplate === 'curved-3d') && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-space-grotesk font-semibold text-slate-700">
+                    Hero Collage Images
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {(currentShowcase.heroImageIds?.length || 0)} of 7 selected
+                    </span>
+                    {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
+                        className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                      >
+                        Reset to Auto
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mb-1">
+                  Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {selectedItems.map((item) => {
+                    const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
+                    const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 7;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={!chosen && atLimit}
+                        onClick={() => {
+                          const current = currentShowcase.heroImageIds || [];
+                          const next = chosen
+                            ? current.filter((id) => id !== item.id)
+                            : [...current, item.id];
+                          onUpdateShowcase({ ...currentShowcase, heroImageIds: next });
+                        }}
+                        title={item.name}
+                        className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                          chosen ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <img
+                          src={item.thumb_small || item.thumb || ''}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {chosen && (
+                          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-12 text-center text-sm text-slate-400 font-space-grotesk">
+            Create or select a showcase first to edit its templates.
+          </div>
+        )
       )}
 
       {activeSection === 'showcases' && (
@@ -966,137 +1139,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </button>
                 </div>
               </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <label className="block font-space-grotesk font-semibold text-slate-700">
-                  Gallery Template
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onUpdateShowcase({ ...currentShowcase, galleryTemplate: 'masonry' })}
-                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
-                      (currentShowcase.galleryTemplate || 'masonry') === 'masonry'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Masonry Grid
-                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">The current grid — safe default</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateShowcase({ ...currentShowcase, galleryTemplate: 'parallax-scroll' })}
-                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
-                      currentShowcase.galleryTemplate === 'parallax-scroll'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Parallax Scroll
-                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">2-column staggered, images shift as you scroll</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <label className="block font-space-grotesk font-semibold text-slate-700">
-                  Hero Template
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'classic' })}
-                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
-                      (currentShowcase.heroTemplate || 'classic') === 'classic'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Classic
-                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">The current hero — safe default</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateShowcase({ ...currentShowcase, heroTemplate: 'animated-mosaic' })}
-                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
-                      currentShowcase.heroTemplate === 'animated-mosaic'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Animated Mosaic
-                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">Parallax image grid, gallery peeks below</span>
-                  </button>
-                </div>
-                {currentShowcase.heroTemplate !== 'animated-mosaic' && (
-                  <p className="text-[10px] text-slate-400">
-                    Select "Animated Mosaic" to choose which images appear in it.
-                  </p>
-                )}
-              </div>
-
-              {currentShowcase.heroTemplate === 'animated-mosaic' && (
-                <div className="space-y-2 sm:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block font-space-grotesk font-semibold text-slate-700">
-                      Hero Collage Images
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {(currentShowcase.heroImageIds?.length || 0)} of 7 selected
-                      </span>
-                      {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
-                          className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                        >
-                          Reset to Auto
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mb-1">
-                    Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {selectedItems.map((item) => {
-                      const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
-                      const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 7;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          disabled={!chosen && atLimit}
-                          onClick={() => {
-                            const current = currentShowcase.heroImageIds || [];
-                            const next = chosen
-                              ? current.filter((id) => id !== item.id)
-                              : [...current, item.id];
-                            onUpdateShowcase({ ...currentShowcase, heroImageIds: next });
-                          }}
-                          title={item.name}
-                          className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                            chosen ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <img
-                            src={item.thumb_small || item.thumb || ''}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                          {chosen && (
-                            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center">
-                              <Check className="w-2.5 h-2.5" />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700 flex items-center gap-1">

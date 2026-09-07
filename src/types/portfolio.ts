@@ -75,7 +75,7 @@ export interface Showcase {
   // 'classic' = the original hero (unchanged, safe default for every
   // existing showcase). 'animated-mosaic' = new mouse-parallax image
   // mosaic hero with a peek of the gallery below.
-  heroTemplate?: 'classic' | 'animated-mosaic';
+  heroTemplate?: 'classic' | 'animated-mosaic' | 'curved-3d';
   // Which items (by id) to feature in the animated-mosaic hero. If empty/
   // undefined, the hero auto-picks the first 5-8 items from item_ids.
   heroImageIds?: string[];
