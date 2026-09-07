@@ -648,11 +648,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block font-space-grotesk font-semibold text-slate-700">
-                    Hero Collage Images
+                    {currentShowcase.heroTemplate === 'curved-3d' ? 'Curved 3D Images' : 'Hero Collage Images'}
                   </label>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {(currentShowcase.heroImageIds?.length || 0)} of 7 selected
+                      {(currentShowcase.heroImageIds?.length || 0)} of {currentShowcase.heroTemplate === 'curved-3d' ? '20' : '7'} selected
                     </span>
                     {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
                       <button
@@ -666,12 +666,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400 mb-1">
-                  Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.
+                  {currentShowcase.heroTemplate === 'curved-3d' 
+                    ? 'Tap up to 20 images from this showcase to feature in the 3D carousel. Leave empty to auto-pick the first 20.'
+                    : 'Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.'}
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {selectedItems.map((item) => {
                     const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
-                    const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 7;
+                    const maxLimit = currentShowcase.heroTemplate === 'curved-3d' ? 20 : 7;
+                    const atLimit = (currentShowcase.heroImageIds?.length || 0) >= maxLimit;
                     return (
                       <button
                         key={item.id}

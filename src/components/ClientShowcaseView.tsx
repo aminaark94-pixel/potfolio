@@ -62,10 +62,10 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
     .filter(Boolean) as PortfolioItem[];
 
   // Items to feature in the animated-mosaic hero: explicit picks if set,
-  // otherwise auto-pick the first 5-8 from the showcase itself.
+  // otherwise auto-pick more items (15-20) from the showcase for better 3D carousel coverage
   const heroFeaturedItems = showcase.heroImageIds && showcase.heroImageIds.length > 0
     ? (showcase.heroImageIds.map((id) => allItems.find((it) => it.id === id)).filter(Boolean) as PortfolioItem[])
-    : showcaseItems.slice(0, 7);
+    : showcaseItems.slice(0, Math.min(20, showcaseItems.length)); // Use 20 items max (or all if less)
 
   const galleryRef = React.useRef<HTMLElement>(null);
 
