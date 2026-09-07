@@ -27,8 +27,11 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
   const items = featuredItems.slice(0, 7);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [targetOffset, setTargetOffset] = useState(0);
-  const [currentOffset, setCurrentOffset] = useState(0);
+  // Start from center: if 7 items, start at item 3 (middle)
+  const startIndex = Math.floor(items.length / 2);
+  
+  const [targetOffset, setTargetOffset] = useState(startIndex);
+  const [currentOffset, setCurrentOffset] = useState(startIndex);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartOffset, setDragStartOffset] = useState(0);
