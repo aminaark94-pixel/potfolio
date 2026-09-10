@@ -62,10 +62,10 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
     .filter(Boolean) as PortfolioItem[];
 
   // Items to feature in the animated-mosaic hero: explicit picks if set,
-  // otherwise auto-pick the first 5-8 from the showcase itself.
+  // otherwise auto-pick more items (15-20) from the showcase for better 3D carousel coverage
   const heroFeaturedItems = showcase.heroImageIds && showcase.heroImageIds.length > 0
     ? (showcase.heroImageIds.map((id) => allItems.find((it) => it.id === id)).filter(Boolean) as PortfolioItem[])
-    : showcaseItems.slice(0, 7);
+    : showcaseItems.slice(0, Math.min(20, showcaseItems.length)); // Use 20 items max (or all if less)
 
   const galleryRef = React.useRef<HTMLElement>(null);
 
@@ -439,7 +439,8 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       )}
 
       {/* Main Showcase Gallery (Masonry Layout) */}
-      <main ref={galleryRef} className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+      <main ref={galleryRef} className="relative z-10 w-full min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pb-24">
+        <div className="w-full max-w-7xl">
         {showcaseItems.length === 0 ? (
           <div className="p-12 sm:p-20 text-center rounded-3xl glass-surface space-y-4">
             <Layers className="w-12 h-12 mx-auto glass-text-muted" />
@@ -457,11 +458,11 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             onOpenLightbox={onOpenLightbox}
           />
         ) : (
-          <div className="space-y-12">
+          <div className="space-y-12 w-full">
             {/* If a specific category is chosen, OR the showcase is set to
                 "flow" layout, render everything in one flat gallery. */}
             {selectedCategory !== 'All' || showcase.layoutMode === 'flow' ? (
-              <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+              <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 w-full">
                 {filteredItems.map((item, index) => (
                   <ShowcaseCard
                     key={item.id}
@@ -477,7 +478,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             ) : (
               /* If "All" is selected, render neatly grouped sections */
               Object.entries(itemsByCategory).map(([catName, itemsInCat]) => (
-                <div key={catName} className="space-y-5">
+                <div key={catName} className="space-y-5 w-full">
                   <div className="flex items-center justify-between glass-hairline border-t-0 border-l-0 border-r-0 pb-3">
                     <div className="flex items-center gap-2.5">
                       <h2 className="font-space-grotesk font-bold text-xl sm:text-2xl glass-text-primary">
@@ -492,7 +493,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+                  <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 w-full">
                     {itemsInCat.map((item, index) => (
                       <ShowcaseCard
                         key={item.id}
@@ -510,6 +511,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             )}
           </div>
         )}
+        </div>
       </main>
 
       {/* Footer */}

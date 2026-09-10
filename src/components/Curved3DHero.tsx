@@ -24,11 +24,16 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
   theme,
   onScrollToGallery,
 }) => {
-  const items = featuredItems.slice(0, 7);
+  // Use ALL featured items (no hardcoded limit)
+  // Either from heroImageIds (admin selected) or auto-picked from showcase
+  const items = featuredItems;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [targetOffset, setTargetOffset] = useState(0);
-  const [currentOffset, setCurrentOffset] = useState(0);
+  // Start from center regardless of total items
+  const startIndex = items.length > 0 ? Math.floor(items.length / 2) : 0;
+  
+  const [targetOffset, setTargetOffset] = useState(startIndex);
+  const [currentOffset, setCurrentOffset] = useState(startIndex);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartOffset, setDragStartOffset] = useState(0);

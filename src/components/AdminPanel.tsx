@@ -729,11 +729,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block font-space-grotesk font-semibold text-slate-700">
-                    Hero Collage Images
+                    {currentShowcase.heroTemplate === 'curved-3d' ? 'Curved 3D Images' : 'Hero Collage Images'}
                   </label>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {(currentShowcase.heroImageIds?.length || 0)} of 7 selected
+                      {(currentShowcase.heroImageIds?.length || 0)} of {currentShowcase.heroTemplate === 'curved-3d' ? '20' : '7'} selected
                     </span>
                     {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
                       <button
@@ -747,12 +747,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400 mb-1">
-                  Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.
+                  {currentShowcase.heroTemplate === 'curved-3d' 
+                    ? 'Tap up to 20 images from this showcase to feature in the 3D carousel. Leave empty to auto-pick the first 20.'
+                    : 'Tap up to 7 images from this showcase to feature in the collage. Leave empty to auto-pick the first 7.'}
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {selectedItems.map((item) => {
                     const chosen = currentShowcase.heroImageIds?.includes(item.id) ?? false;
-                    const atLimit = (currentShowcase.heroImageIds?.length || 0) >= 7;
+                    const maxLimit = currentShowcase.heroTemplate === 'curved-3d' ? 20 : 7;
+                    const atLimit = (currentShowcase.heroImageIds?.length || 0) >= maxLimit;
                     return (
                       <button
                         key={item.id}
@@ -786,6 +789,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Launch Client View & Copy Link Buttons */}
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <p className="text-xs text-slate-500 font-space-grotesk">Preview & Share</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={onOpenClientView}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white font-space-grotesk font-bold text-xs shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  style={{
+                    backgroundColor: theme.accent,
+                    boxShadow: `0 4px 14px ${theme.accentGlow}`,
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Launch Client View</span>
+                </button>
+
+                <button
+                  onClick={handleCopyClientLink}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-mono transition-all cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4 text-slate-500" />}
+                  <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="p-12 text-center text-sm text-slate-400 font-space-grotesk">
