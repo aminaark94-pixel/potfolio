@@ -39,7 +39,7 @@ import {
   getLastDriveSyncTime,
   setLastDriveSyncTime,
 } from '../utils/storage';
-import { detectMediaType, getDriveThumb } from '../data/rawPortfolioData';
+import { detectMediaType, getDriveThumb, extractDriveFileId } from '../data/rawPortfolioData';
 import {
   connectGoogleDriveAccount,
   scanDriveForNewItems,
@@ -50,15 +50,6 @@ import { CoverLetterTab } from './CoverLetterTab';
 import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
 import { DriveLinksTab } from './DriveLinksTab';
 import confetti from 'canvas-confetti';
-
-function extractDriveFileId(driveLink: string | null | undefined): string | null {
-  if (!driveLink) return null;
-  const m1 = driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  if (m1 && m1[1]) return m1[1];
-  const m2 = driveLink.match(/id=([a-zA-Z0-9_-]+)/);
-  if (m2 && m2[1]) return m2[1];
-  return null;
-}
 
 interface AdminPanelProps {
   showcases: Record<string, Showcase>;
@@ -619,6 +610,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           }}
           activeShowcaseName={currentShowcase?.heading}
           existingCategories={Array.from(new Set(allItems.map((i) => i.category))).sort()}
+          existingItems={allItems}
         />
       )}
 

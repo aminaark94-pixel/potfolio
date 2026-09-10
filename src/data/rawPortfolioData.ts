@@ -22,6 +22,17 @@ export function getDriveThumb(driveUrl: string | null, size: number = 800): stri
   return driveUrl;
 }
 
+// Extracts the Google Drive file ID from a share link, for de-duplication
+// (the same file can be pasted twice, or synced from two different folders).
+export function extractDriveFileId(driveLink: string | null | undefined): string | null {
+  if (!driveLink) return null;
+  const m1 = driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1 && m1[1]) return m1[1];
+  const m2 = driveLink.match(/id=([a-zA-Z0-9_-]+)/);
+  if (m2 && m2[1]) return m2[1];
+  return null;
+}
+
 export function detectMediaType(filename: string | null, driveUrl: string | null): 'image' | 'video' | 'gif' | 'pdf' | 'webp' {
   const str = ((filename || '') + ' ' + (driveUrl || '')).toLowerCase();
   if (str.includes('.mp4') || str.includes('.webm') || str.includes('.mov') || str.includes('video/')) return 'video';

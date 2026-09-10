@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link2, Plus, Trash2, UploadCloud, CheckCircle2, ExternalLink } from 'lucide-react';
 import { PortfolioItem } from '../types/portfolio';
-import { getDriveThumb, detectMediaType } from '../data/rawPortfolioData';
+import { getDriveThumb, detectMediaType, extractDriveFileId } from '../data/rawPortfolioData';
 import { saveCustomItemsToCloud } from '../utils/storage';
 
 interface DriveLinksTabProps {
@@ -9,6 +9,11 @@ interface DriveLinksTabProps {
   onItemsAddedToShowcase: (items: PortfolioItem[]) => void;
   activeShowcaseName?: string;
   existingCategories: string[];
+  // Used to silently skip creating a duplicate backend entry when a pasted
+  // link's file already exists in the catalog (same file pasted twice, or
+  // synced from two different folders) — the existing item is reused
+  // instead, so the showcase/link still works without a duplicate copy.
+  existingItems: PortfolioItem[];
 }
 
 interface DraftRow {
@@ -31,7 +36,8 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({
   onItemsAdded,
   onItemsAddedToShowcase,
   activeShowcaseName,
-  existingCategories
+  existingCategories,
+  existingItems
 }) => {
   const [rows, setRows] = useState<DraftRow[]>([newRow()]);
   const [defaultCategory, setDefaultCategory] = useState('Branding');
@@ -92,12 +98,35 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({
     setSuccessMessage(null);
 
     try {
+      // Silently skip creating a duplicate backend entry when a pasted
+      // link's file already exists in the catalog — same file pasted
+      // twice, or synced from two different Drive folders. The existing
+      // item is reused so a showcase still gets a working entry without
+      // adding a second copy behind the scenes.
+      const existingByFileId = new Map<string, PortfolioItem>();
+      existingItems.forEach((it) => {
+        const fid = extractDriveFileId(it.drive_link);
+        if (fid) existingByFileId.set(fid, it);
+      });
+
+      const newRowsList: DraftRow[] = [];
+      const reusedExistingItems: PortfolioItem[] = [];
+      validRows.forEach((row) => {
+        const fid = extractDriveFileId(row.driveUrl.trim());
+        const existing = fid ? existingByFileId.get(fid) : undefined;
+        if (existing) {
+          reusedExistingItems.push(existing);
+        } else {
+          newRowsList.push(row);
+        }
+      });
+
       // Rows left blank get a relevant auto-generated name from their
       // category/subcategory instead of a generic "Untitled" placeholder,
       // numbered per group (e.g. "Fashion Logo 1", "Fashion Logo 2"...).
       const groupCounters: Record<string, number> = {};
 
-      const newItems: PortfolioItem[] = validRows.map((row) => {
+      const newItems: PortfolioItem[] = newRowsList.map((row) => {
         const category = row.category.trim() || defaultCategory.trim() || 'Uncategorized';
         const subcategory = row.subcategory.trim() || undefined;
 
@@ -131,14 +160,22 @@ export const DriveLinksTab: React.FC<DriveLinksTabProps> = ({
         };
       });
 
-      await saveCustomItemsToCloud(newItems);
+      if (newItems.length > 0) {
+        await saveCustomItemsToCloud(newItems);
+      }
+
+      const dupSuffix = reusedExistingItems.length > 0
+        ? ` (${reusedExistingItems.length} duplicate${reusedExistingItems.length > 1 ? 's' : ''} already in your catalog — reused instead of re-added)`
+        : '';
 
       if (addToShowcase) {
-        onItemsAddedToShowcase(newItems);
-        setSuccessMessage(`Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} to your portfolio catalog AND selected them into "${activeShowcaseName || 'the current showcase'}" — just hit Launch Client View or Copy Link.`);
+        // Existing duplicates get added to the showcase too, reusing their
+        // id — the showcase works, nothing new was created for them.
+        onItemsAddedToShowcase([...newItems, ...reusedExistingItems]);
+        setSuccessMessage(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'} to your portfolio catalog AND selected them into "${activeShowcaseName || 'the current showcase'}"${dupSuffix} — just hit Launch Client View or Copy Link.`);
       } else {
-        onItemsAdded(newItems);
-        setSuccessMessage(`Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} to your portfolio catalog.`);
+        if (newItems.length > 0) onItemsAdded(newItems);
+        setSuccessMessage(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'} to your portfolio catalog${dupSuffix}.`);
       }
 
       setRows([newRow()]);
