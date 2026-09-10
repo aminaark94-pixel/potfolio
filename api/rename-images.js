@@ -42,7 +42,14 @@ function buildVisionMessages(imageUrl) {
 }
 
 function cleanName(raw) {
-  return (raw || '')
+  let text = raw || '';
+  // Qwen3.6 is a "thinking" model and can leak its reasoning trace into
+  // the response even with reasoning disabled — strip any <think>...</think>
+  // block (or an unclosed one) as a defensive safety net regardless of
+  // whether the API-level reasoning_effort/reasoning_format params worked.
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  text = text.replace(/<think>[\s\S]*$/gi, '');
+  return text
     .trim()
     .replace(/^["'“”]+|["'“”]+$/g, '')
     .replace(/[.!]+$/g, '')
@@ -72,6 +79,12 @@ async function callGroqVision(imageUrl, timeoutMs = 15000) {
           messages: buildVisionMessages(imageUrl),
           temperature: 0.4,
           max_tokens: 60,
+          // Qwen3.6 is a reasoning model and thinks by default — this is a
+          // simple naming task, not something that needs a reasoning trace,
+          // and the trace was leaking into the output. "none" fully
+          // disables it for the qwen3 family (confirmed supported).
+          reasoning_effort: 'none',
+          reasoning_format: 'hidden',
         }),
         signal: controller.signal,
       });

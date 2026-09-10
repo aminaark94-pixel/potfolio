@@ -370,17 +370,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // image (in small batches, gentle on free-tier rate limits) to the
   // vision API, and permanently renames items with real, searchable names
   // instead of raw Drive filenames like "rest.png" or "logo1.png".
-  const handleAIRenameSelected = async () => {
+  // Detects whether an item's name looks like a raw, un-renamed filename
+  // (e.g. "rest.png", "logo1", "IMG_1234", "Untitled Item 3") rather than a
+  // real description — this is what "AI Rename" scans for automatically.
+  const looksGeneric = (name: string): boolean => {
+    const n = (name || '').trim();
+    if (!n) return true;
+    if (/\.(png|jpe?g|webp|gif|heic|bmp|tiff?|svg)$/i.test(n)) return true;
+    if (/^(img|image|pic|picture|photo|logo|screenshot|screen ?shot|asset|file|design|untitled|new|copy|doc|scan|dsc|final|draft|version|v)[\s_-]*\d*$/i.test(n)) return true;
+    if (/^untitled item\s*\d*$/i.test(n)) return true;
+    if (/^[a-z]{2,6}[_-]?\d{3,}$/i.test(n)) return true;
+    if (!/\s/.test(n) && /[_-]/.test(n) && n.length <= 40) return true;
+    return false;
+  };
+
+  const handleAIRenameGeneric = async () => {
     const itemsToRename = allItems.filter(
-      (i) => selectedItemIds.has(i.id) && (i.thumb || i.thumb_large || i.thumb_small)
+      (i) => i.custom && looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small)
     );
     if (itemsToRename.length === 0) {
-      setBulkActionMessage('No selected items have an image to look at.');
+      setBulkActionMessage('No generically-named items found — everything already has a real name.');
       return;
     }
     if (
       !confirm(
-        `Use AI to auto-name ${itemsToRename.length} selected item(s)? This calls an AI vision API and permanently updates their names — it can take a while for large batches.`
+        `Found ${itemsToRename.length} item(s) with generic/filename-style names (e.g. "rest.png", "logo1"). Use AI to rename all of them? This calls an AI vision API and permanently updates their names — it can take a while for large batches.`
       )
     ) {
       return;
@@ -875,6 +889,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           >
             <RefreshCw className={`w-4 h-4 text-amber-300 ${isRefreshingThumbs ? 'animate-spin' : ''}`} />
             <span>{isRefreshingThumbs ? 'Refreshing...' : 'Fix Pixelated Thumbnails'}</span>
+          </button>
+
+          <button
+            onClick={handleAIRenameGeneric}
+            disabled={isRenamingWithAI}
+            title="Scans every custom item for filename-style names (rest.png, logo1, IMG_1234...) and uses AI to give them real, searchable names"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/50 border border-white/20 text-white font-space-grotesk text-xs font-semibold transition-all hover:scale-105 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <Sparkles className={`w-4 h-4 text-emerald-300 ${isRenamingWithAI ? 'animate-pulse' : ''}`} />
+            <span>
+              {isRenamingWithAI ? `AI Renaming ${renameProgress.done}/${renameProgress.total}...` : 'AI Rename Generic Names'}
+            </span>
           </button>
         </div>
       </div>
@@ -1561,16 +1587,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
             >
               <Folder className="w-3.5 h-3.5" /> Move to Category
-            </button>
-
-            <button
-              onClick={handleAIRenameSelected}
-              disabled={isRenamingWithAI}
-              title="Uses AI to look at each selected image and give it a real, searchable name"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-xs font-space-grotesk font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {isRenamingWithAI ? `Naming ${renameProgress.done}/${renameProgress.total}...` : 'AI Rename Selected'}
             </button>
 
             <button
