@@ -108,6 +108,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
+  const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
+  const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
   const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
@@ -364,6 +366,85 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Moves the item at `index` earlier (direction -1) or later (direction 1)
   // in the showcase's item_ids order, which is exactly the order clients
   // see them rendered in (see ClientShowcaseView's showcaseItems).
+  // Bulk AI renaming: takes whatever is currently selected, sends each
+  // image (in small batches, gentle on free-tier rate limits) to the
+  // vision API, and permanently renames items with real, searchable names
+  // instead of raw Drive filenames like "rest.png" or "logo1.png".
+  const handleAIRenameSelected = async () => {
+    const itemsToRename = allItems.filter(
+      (i) => selectedItemIds.has(i.id) && (i.thumb || i.thumb_large || i.thumb_small)
+    );
+    if (itemsToRename.length === 0) {
+      setBulkActionMessage('No selected items have an image to look at.');
+      return;
+    }
+    if (
+      !confirm(
+        `Use AI to auto-name ${itemsToRename.length} selected item(s)? This calls an AI vision API and permanently updates their names — it can take a while for large batches.`
+      )
+    ) {
+      return;
+    }
+
+    setIsRenamingWithAI(true);
+    setRenameProgress({ done: 0, total: itemsToRename.length });
+    setBulkActionMessage(null);
+
+    const BATCH_SIZE = 8;
+    const updatedNames: Record<string, string> = {};
+    const errors: string[] = [];
+
+    for (let i = 0; i < itemsToRename.length; i += BATCH_SIZE) {
+      const batch = itemsToRename.slice(i, i + BATCH_SIZE);
+      try {
+        const res = await fetch('/api/rename-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: batch.map((it) => ({
+              id: it.id,
+              imageUrl: it.thumb_large || it.thumb || it.thumb_small,
+            })),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        (data.results || []).forEach((r: any) => {
+          if (r.name) updatedNames[r.id] = r.name;
+          else if (r.error) errors.push(`${r.id}: ${r.error}`);
+        });
+      } catch (e: any) {
+        errors.push(`Batch starting at item ${i + 1}: ${e.message}`);
+      }
+      setRenameProgress({ done: Math.min(i + BATCH_SIZE, itemsToRename.length), total: itemsToRename.length });
+      // Brief pause between batches — gentle on free-tier rate limits.
+      await new Promise((r) => setTimeout(r, 600));
+    }
+
+    const renamedItems = itemsToRename
+      .filter((it) => updatedNames[it.id])
+      .map((it) => {
+        const newName = updatedNames[it.id];
+        const nameWords = newName.toLowerCase().split(/\s+/).filter(Boolean);
+        return {
+          ...it,
+          name: newName,
+          keywords: Array.from(new Set([...(it.keywords || []), ...nameWords])),
+        };
+      });
+
+    if (renamedItems.length > 0) {
+      await onBulkAddItems(renamedItems);
+    }
+
+    setIsRenamingWithAI(false);
+    setBulkActionMessage(
+      `Renamed ${renamedItems.length} of ${itemsToRename.length} item(s) with AI.${
+        errors.length ? ` ${errors.length} failed — try selecting just those and running it again.` : ''
+      }`
+    );
+  };
+
   const handlePermanentDeleteItem = async (item: PortfolioItem) => {
     if (!confirm(`Permanently delete "${item.name}"? This removes it from the catalog and every showcase — it cannot be undone.`)) {
       return;
@@ -1451,6 +1532,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
             >
               <Folder className="w-3.5 h-3.5" /> Move to Category
+            </button>
+
+            <button
+              onClick={handleAIRenameSelected}
+              disabled={isRenamingWithAI}
+              title="Uses AI to look at each selected image and give it a real, searchable name"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-xs font-space-grotesk font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {isRenamingWithAI ? `Naming ${renameProgress.done}/${renameProgress.total}...` : 'AI Rename Selected'}
             </button>
 
             <button
