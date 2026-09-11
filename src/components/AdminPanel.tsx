@@ -48,6 +48,7 @@ import {
 } from '../utils/googleDrive';
 import { CoverLetterTab } from './CoverLetterTab';
 import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
+import { DuplicateFinderModal } from './DuplicateFinderModal';
 import { DriveLinksTab } from './DriveLinksTab';
 import confetti from 'canvas-confetti';
 
@@ -101,6 +102,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
+  const [isDuplicateFinderOpen, setIsDuplicateFinderOpen] = useState(false);
   const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
@@ -893,6 +895,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <span>
               {isRenamingWithAI ? `AI Renaming ${renameProgress.done}/${renameProgress.total}...` : 'AI Rename Generic Names'}
             </span>
+          </button>
+
+          <button
+            onClick={() => setIsDuplicateFinderOpen(true)}
+            title="Read-only scan that compares images visually to find the same picture uploaded more than once — nothing is ever deleted or unlinked"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/30 hover:bg-sky-500/50 border border-white/20 text-white font-space-grotesk text-xs font-semibold transition-all hover:scale-105 cursor-pointer"
+          >
+            <Search className="w-4 h-4 text-sky-300" />
+            <span>Find Duplicate Images</span>
           </button>
         </div>
       </div>
@@ -1866,6 +1877,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
       </>
       )}
+
+      <DuplicateFinderModal
+        isOpen={isDuplicateFinderOpen}
+        onClose={() => setIsDuplicateFinderOpen(false)}
+        items={allItems.filter((i) => i.custom)}
+      />
     </div>
   );
 };
