@@ -66,6 +66,7 @@ interface AdminPanelProps {
   onOpenDownloadModal: () => void;
   onBulkAddItems: (items: PortfolioItem[]) => Promise<void>;
   onDeleteCustomItem: (itemId: string) => Promise<void>;
+  onSetItemHidden: (itemId: string, hidden: boolean) => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -82,6 +83,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenDownloadModal,
   onBulkAddItems,
   onDeleteCustomItem,
+  onSetItemHidden,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -294,7 +296,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         item.category.toLowerCase().includes(q) ||
         item.keywords.some((kw) => kw.toLowerCase().includes(q));
 
-      return matchCat && matchSubcat && matchMedia && matchQuery;
+      return !item.hidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
   }, [allItems, searchQuery, selectedCategory, selectedSubcategory, mediaFilter]);
 
@@ -1882,6 +1884,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         isOpen={isDuplicateFinderOpen}
         onClose={() => setIsDuplicateFinderOpen(false)}
         items={allItems.filter((i) => i.custom)}
+        onSetItemHidden={onSetItemHidden}
       />
     </div>
   );

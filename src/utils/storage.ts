@@ -664,3 +664,29 @@ export async function bulkUpdateCustomItemsCategory(
   });
   await batch.commit();
 }
+
+// ─────────────────────────────────────────────────────────────
+// Hidden catalog items: hide (not delete) duplicates/junk from every
+// browse/search view. Works for BOTH base (static) and custom (Firestore)
+// items uniformly via a single settings doc — a base catalog item has no
+// per-item Firestore doc to flag, so this is the only approach that covers
+// both. Never removes anything, so any showcase already linking to a
+// hidden item (e.g. sent to a client) keeps working exactly as before.
+// ─────────────────────────────────────────────────────────────
+const HIDDEN_ITEMS_DOC_ID = 'hiddenItemIds';
+
+export async function loadHiddenItemIds(): Promise<Set<string>> {
+  try {
+    const snap = await getDoc(doc(db, 'settings', HIDDEN_ITEMS_DOC_ID));
+    if (snap.exists() && Array.isArray(snap.data().ids)) {
+      return new Set(snap.data().ids as string[]);
+    }
+  } catch (e) {
+    console.error('Failed to load hidden item ids from Firestore', e);
+  }
+  return new Set();
+}
+
+export async function saveHiddenItemIds(ids: Set<string>): Promise<void> {
+  await setDoc(doc(db, 'settings', HIDDEN_ITEMS_DOC_ID), { ids: Array.from(ids) });
+}

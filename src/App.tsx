@@ -18,6 +18,8 @@ import {
   deleteCustomItemFromCloud,
   saveStoredCustomItems,
   getAllPortfolioItems,
+  loadHiddenItemIds,
+  saveHiddenItemIds,
 } from './utils/storage';
 
 export default function App() {
@@ -31,6 +33,7 @@ export default function App() {
     typeof window !== 'undefined' && window.location.hash.includes('showcase=') ? 'client' : 'admin'
   );
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
+  const [hiddenItemIds, setHiddenItemIds] = useState<Set<string>>(new Set());
   const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [notFoundSlug, setNotFoundSlug] = useState<string | null>(null);
@@ -61,13 +64,15 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [loadedShowcases, customItems] = await Promise.all([
+        const [loadedShowcases, customItems, hiddenIds] = await Promise.all([
           loadShowcasesFromCloud(),
           loadCustomItemsFromCloud(),
+          loadHiddenItemIds(),
         ]);
         setShowcases(loadedShowcases);
         saveStoredCustomItems(customItems);
-        setAllItems(getAllPortfolioItems());
+        setHiddenItemIds(hiddenIds);
+        setAllItems(getAllPortfolioItems().map((it) => ({ ...it, hidden: hiddenIds.has(it.id) })));
 
         // Check URL hash for direct client showcase link (e.g. #showcase=new-client-f0c7)
         const hash = window.location.hash;
@@ -171,6 +176,21 @@ export default function App() {
   // showcase) — deletes it from Firestore, local state, and strips its id
   // out of every showcase's item_ids so no showcase is left pointing at a
   // deleted item.
+  // Hide/unhide an item everywhere in the admin catalog, WITHOUT deleting
+  // it — any showcase already linking to it (e.g. already sent to a
+  // client) keeps working exactly as before. Works for base AND custom
+  // items since it's a separate id-set, not a per-item Firestore field.
+  const handleSetItemHidden = async (itemId: string, hidden: boolean) => {
+    setHiddenItemIds((prev) => {
+      const next = new Set<string>(prev);
+      if (hidden) next.add(itemId);
+      else next.delete(itemId);
+      saveHiddenItemIds(next).catch(() => {});
+      return next;
+    });
+    setAllItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, hidden } : it)));
+  };
+
   const handleDeleteCustomItem = async (itemId: string) => {
     await deleteCustomItemFromCloud(itemId);
 
@@ -256,6 +276,7 @@ export default function App() {
             showcases={showcases}
             activeSlug={activeSlug}
             allItems={allItems}
+            onSetItemHidden={handleSetItemHidden}
             onSelectShowcase={setActiveSlug}
             onUpdateShowcase={handleUpdateShowcase}
             onCreateShowcase={handleCreateShowcase}

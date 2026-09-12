@@ -4,13 +4,14 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { X, Search, AlertTriangle, ExternalLink } from 'lucide-react';
+import { X, Search, AlertTriangle, ExternalLink, EyeOff, Eye, CheckCircle2 } from 'lucide-react';
 import { PortfolioItem } from '../types/portfolio';
 
 interface DuplicateFinderModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: PortfolioItem[];
+  onSetItemHidden: (itemId: string, hidden: boolean) => Promise<void>;
 }
 
 // Perceptual hash (dHash): resizes the image to a tiny 9x8 grayscale grid
@@ -79,11 +80,28 @@ interface DuplicateGroup {
   items: PortfolioItem[];
 }
 
-export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOpen, onClose, items }) => {
+export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOpen, onClose, items, onSetItemHidden }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [groups, setGroups] = useState<DuplicateGroup[] | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [hidingIds, setHidingIds] = useState<Set<string>>(new Set());
+  const [showHiddenPanel, setShowHiddenPanel] = useState(false);
+
+  const handleToggleHide = async (itemId: string, currentlyHidden: boolean) => {
+    setHidingIds((prev) => new Set(prev).add(itemId));
+    try {
+      await onSetItemHidden(itemId, !currentlyHidden);
+    } finally {
+      setHidingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
+  };
+
+  const hiddenItems = items.filter((i) => i.hidden);
 
   useEffect(() => {
     if (!isOpen) {
@@ -96,7 +114,9 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
     setIsScanning(true);
     setGroups(null);
     setSkippedCount(0);
-    const targets = items.filter((i) => i.thumb_small || i.thumb || i.thumb_large);
+    // Skip already-hidden items — no point re-flagging something the admin
+    // already dealt with.
+    const targets = items.filter((i) => !i.hidden && (i.thumb_small || i.thumb || i.thumb_large));
     setProgress({ done: 0, total: targets.length });
 
     const hashes: Array<{ item: PortfolioItem; hash: string }> = [];
@@ -150,15 +170,56 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
           <div>
             <h3 className="text-lg font-bold text-slate-900 font-space-grotesk">Find Duplicate Images</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Read-only scan — nothing is ever changed, removed, or unlinked from a showcase. It just shows you what looks like the same picture uploaded more than once.
+              Read-only scan — nothing is ever deleted. Use "Hide" on a repeat to remove it from browse/search only; any showcase already linking to it (e.g. sent to a client) keeps working exactly as before.
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {hiddenItems.length > 0 && (
+              <button
+                onClick={() => setShowHiddenPanel((v) => !v)}
+                className="text-xs font-bold text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 cursor-pointer whitespace-nowrap"
+              >
+                {showHiddenPanel ? 'Back to Scan' : `Hidden Items (${hiddenItems.length})`}
+              </button>
+            )}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {showHiddenPanel ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">
+                These items are hidden from browse/search everywhere in the admin, but not deleted — any showcase already linking to one still shows it fine.
+              </p>
+              {hiddenItems.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">No hidden items.</p>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {hiddenItems.map((item) => (
+                    <div key={item.id} className="border border-slate-200 rounded-xl p-2 space-y-1.5">
+                      <img
+                        src={item.thumb_small || item.thumb || ''}
+                        alt={item.name}
+                        className="w-full aspect-square object-cover rounded-lg opacity-60"
+                      />
+                      <p className="text-[11px] font-semibold text-slate-600 truncate" title={item.name}>{item.name}</p>
+                      <button
+                        onClick={() => handleToggleHide(item.id, true)}
+                        disabled={hidingIds.has(item.id)}
+                        className="w-full inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        <Eye className="w-3 h-3" /> Unhide
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+          <>
           {!isScanning && groups === null && (
             <div className="text-center py-12 space-y-4">
               <Search className="w-10 h-10 mx-auto text-slate-300" />
@@ -229,6 +290,19 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                                 <ExternalLink className="w-2.5 h-2.5" /> Open in Drive
                               </a>
                             )}
+                            <button
+                              onClick={() => handleToggleHide(item.id, false)}
+                              disabled={hidingIds.has(item.id)}
+                              className="w-full mt-1.5 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                            >
+                              {hidingIds.has(item.id) ? (
+                                'Hiding...'
+                              ) : (
+                                <>
+                                  <EyeOff className="w-3 h-3" /> Hide
+                                </>
+                              )}
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -248,6 +322,8 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                 Re-scan
               </button>
             </>
+          )}
+          </>
           )}
         </div>
       </div>

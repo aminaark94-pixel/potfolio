@@ -14,6 +14,10 @@ export interface PortfolioItem {
   keywords: string[];
   custom?: boolean;
   featured?: boolean;
+  // Hidden from browse/search everywhere in the admin catalog, WITHOUT
+  // deleting the item — any showcase that already links to it (e.g. sent
+  // to a client) keeps working exactly as before.
+  hidden?: boolean;
 }
 
 export type ThemeId = 
