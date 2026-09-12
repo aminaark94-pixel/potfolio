@@ -11,6 +11,7 @@ interface DuplicateFinderModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: PortfolioItem[];
+  onHideItem: (item: PortfolioItem, hidden: boolean) => void;
 }
 
 // Perceptual hash (dHash): resizes the image to a tiny 9x8 grayscale grid
@@ -79,11 +80,12 @@ interface DuplicateGroup {
   items: PortfolioItem[];
 }
 
-export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOpen, onClose, items }) => {
+export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOpen, onClose, items, onHideItem }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [groups, setGroups] = useState<DuplicateGroup[] | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [locallyHiddenIds, setLocallyHiddenIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) {
@@ -208,17 +210,45 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                         Group {gi + 1} — {group.items.length} matches
                       </p>
                       <div className="flex gap-3 overflow-x-auto pb-1">
-                        {group.items.map((item) => (
+                        {group.items.map((item) => {
+                          const isHidden = item.hidden || locallyHiddenIds.has(item.id);
+                          return (
                           <div key={item.id} className="shrink-0 w-28">
-                            <img
-                              src={item.thumb_small || item.thumb || ''}
-                              alt={item.name}
-                              className="w-28 h-28 object-cover rounded-xl border border-slate-200"
-                            />
+                            <div className="relative">
+                              <img
+                                src={item.thumb_small || item.thumb || ''}
+                                alt={item.name}
+                                className={`w-28 h-28 object-cover rounded-xl border border-slate-200 ${isHidden ? 'opacity-40' : ''}`}
+                              />
+                              {isHidden && (
+                                <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-slate-900/80 text-white text-[9px] font-bold">
+                                  Hidden
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] font-semibold text-slate-700 mt-1 truncate" title={item.name}>
                               {item.name}
                             </p>
                             <p className="text-[10px] text-slate-400 truncate">{item.category}</p>
+                            <button
+                              onClick={() => {
+                                const nextHidden = !isHidden;
+                                setLocallyHiddenIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (nextHidden) next.add(item.id);
+                                  else next.delete(item.id);
+                                  return next;
+                                });
+                                onHideItem(item, nextHidden);
+                              }}
+                              className={`w-full mt-1 text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer ${
+                                isHidden
+                                  ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                  : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                              }`}
+                            >
+                              {isHidden ? 'Unhide' : 'Hide from Panel'}
+                            </button>
                             {item.drive_link && (
                               <a
                                 href={item.drive_link}
@@ -230,7 +260,8 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                               </a>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

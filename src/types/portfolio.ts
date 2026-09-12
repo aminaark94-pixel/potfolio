@@ -14,6 +14,12 @@ export interface PortfolioItem {
   keywords: string[];
   custom?: boolean;
   featured?: boolean;
+  // Hides this item from the admin catalog browser only (e.g. a confirmed
+  // duplicate the admin doesn't want to see while curating new showcases)
+  // — has NO effect on any existing showcase, which still renders it
+  // normally since showcases reference items by id directly, not through
+  // the catalog browser's filtered list.
+  hidden?: boolean;
 }
 
 export type ThemeId = 

@@ -11,6 +11,7 @@ import {
   Sliders, 
   Layers, 
   Eye, 
+  EyeOff,
   Palette, 
   Lock, 
   Sparkles, 
@@ -103,6 +104,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
   const [isDuplicateFinderOpen, setIsDuplicateFinderOpen] = useState(false);
+  const [showHiddenItems, setShowHiddenItems] = useState(false);
   const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
@@ -285,6 +287,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const filteredCatalog = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return allItems.filter((item) => {
+      const matchHidden = showHiddenItems || !item.hidden;
       const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
       const matchSubcat = selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
       const matchMedia = mediaFilter === 'all' || item.mediaType === mediaFilter;
@@ -294,9 +297,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         item.category.toLowerCase().includes(q) ||
         item.keywords.some((kw) => kw.toLowerCase().includes(q));
 
-      return matchCat && matchSubcat && matchMedia && matchQuery;
+      return matchHidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
-  }, [allItems, searchQuery, selectedCategory, selectedSubcategory, mediaFilter]);
+  }, [allItems, searchQuery, selectedCategory, selectedSubcategory, mediaFilter, showHiddenItems]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredCatalog.length / pageSize) || 1;
@@ -450,6 +453,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         errors.length ? ` ${errors.length} failed — try selecting just those and running it again.` : ''
       }`
     );
+  };
+
+  // Hides/unhides an item from the admin catalog browser only — never
+  // touches any showcase, which resolves items by id directly.
+  const handleSetItemHidden = async (item: PortfolioItem, hidden: boolean) => {
+    await onBulkAddItems([{ ...item, hidden }]);
   };
 
   const handlePermanentDeleteItem = async (item: PortfolioItem) => {
@@ -1481,6 +1490,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <option value="pdf">PDFs & Guidelines</option>
             </select>
           </div>
+
+          <button
+            onClick={() => setShowHiddenItems((v) => !v)}
+            className={`w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs sm:text-sm font-space-grotesk font-medium border shadow-sm cursor-pointer transition ${
+              showHiddenItems
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Items hidden from this panel (e.g. confirmed duplicates) stay fully working in any showcase that already uses them"
+          >
+            {showHiddenItems ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            {showHiddenItems ? 'Showing Hidden Items' : `Show Hidden (${allItems.filter((i) => i.hidden).length})`}
+          </button>
         </div>
 
         {/* Category Pills Scroller */}
@@ -1785,6 +1807,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </span>
                   )}
 
+                  {item.hidden && (
+                    <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-md bg-slate-900/80 text-white text-[10px] font-mono font-bold flex items-center gap-1">
+                      <EyeOff className="w-3 h-3" />
+                      Hidden
+                    </span>
+                  )}
+
+                  {item.custom && item.hidden && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSetItemHidden(item, false);
+                      }}
+                      title="Unhide — show this in the catalog browser again"
+                      className="absolute bottom-2.5 right-2.5 px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold cursor-pointer opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      Unhide
+                    </button>
+                  )}
+
                   {/* Permanent delete — only for custom items (Drive links /
                       synced files), never the original static catalog. */}
                   {item.custom && (
@@ -1882,6 +1924,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         isOpen={isDuplicateFinderOpen}
         onClose={() => setIsDuplicateFinderOpen(false)}
         items={allItems.filter((i) => i.custom)}
+        onHideItem={handleSetItemHidden}
       />
     </div>
   );
