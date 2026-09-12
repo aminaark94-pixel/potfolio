@@ -91,6 +91,8 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
   // show an immediate "Hidden" confirmation instead of looking frozen —
   // the scan's `groups` snapshot never re-runs on its own.
   const [justHiddenIds, setJustHiddenIds] = useState<Set<string>>(new Set());
+  const [isBulkHiding, setIsBulkHiding] = useState(false);
+  const [bulkHideProgress, setBulkHideProgress] = useState({ done: 0, total: 0 });
 
   const handleToggleHide = async (itemId: string, currentlyHidden: boolean) => {
     setHidingIds((prev) => new Set(prev).add(itemId));
@@ -114,6 +116,39 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
   };
 
   const hiddenItems = items.filter((i) => i.hidden);
+
+  // One click: for every group, keeps the first image (treated as the
+  // "original" to keep visible) and hides every other match in that
+  // group — instead of clicking "Hide" one item at a time.
+  const handleHideAllDuplicates = async () => {
+    if (!groups || groups.length === 0) return;
+    const toHide = groups.flatMap((g) => g.items.slice(1)).filter((it) => !it.hidden);
+    if (toHide.length === 0) return;
+
+    if (
+      !confirm(
+        `Hide ${toHide.length} duplicate item(s) across ${groups.length} group(s)? The first image in each group stays visible as the keeper — the rest are hidden from browse/search only. Nothing is deleted, and any showcase already using them keeps working.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkHiding(true);
+    setBulkHideProgress({ done: 0, total: toHide.length });
+
+    for (const item of toHide) {
+      try {
+        await onSetItemHidden(item.id, true);
+        setJustHiddenIds((prev) => new Set(prev).add(item.id));
+      } catch {
+        // Keep going even if one fails — better to hide the rest than
+        // stop the whole batch over a single network hiccup.
+      }
+      setBulkHideProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+
+    setIsBulkHiding(false);
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -275,6 +310,17 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                     Found {groups.length} group{groups.length === 1 ? '' : 's'} of likely duplicates. Nothing has been changed —
                     review each group and click "Hide" on the repeat(s) you want gone from browse/search.
                   </p>
+
+                  <button
+                    onClick={handleHideAllDuplicates}
+                    disabled={isBulkHiding}
+                    className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-rose-200"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                    {isBulkHiding
+                      ? `Hiding ${bulkHideProgress.done}/${bulkHideProgress.total}...`
+                      : `Hide All Duplicates (keeps 1 per group, ${groups.reduce((n, g) => n + g.items.length - 1, 0)} to hide)`}
+                  </button>
                   {groups.map((group, gi) => (
                     <div key={gi} className="border border-slate-200 rounded-2xl p-4 space-y-2">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
