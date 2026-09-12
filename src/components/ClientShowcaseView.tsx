@@ -69,8 +69,20 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
 
   const galleryRef = React.useRef<HTMLElement>(null);
 
-  // Get available categories in this showcase
-  const categories = ['All', ...Array.from(new Set(showcaseItems.map((i) => i.category)))];
+  // Get available categories in this showcase, in default (first-seen) order
+  const categoriesDefaultOrder = ['All', ...Array.from(new Set(showcaseItems.map((i) => i.category)))];
+
+  // If the studio picked a "featured" category to show first, bring it to
+  // the front (right after "All") — everything else keeps its normal
+  // relative order. If nothing is picked, or the picked category isn't in
+  // this showcase, the order is completely unchanged from before.
+  const categories = showcase.featuredCategory && categoriesDefaultOrder.includes(showcase.featuredCategory)
+    ? [
+        'All',
+        showcase.featuredCategory,
+        ...categoriesDefaultOrder.filter((c) => c !== 'All' && c !== showcase.featuredCategory),
+      ]
+    : categoriesDefaultOrder;
 
   // Filter items
   const filteredItems = selectedCategory === 'All'
@@ -83,6 +95,20 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
     if (!itemsByCategory[it.category]) itemsByCategory[it.category] = [];
     itemsByCategory[it.category].push(it);
   });
+
+  // Same "bring the featured category to the front" rule, applied to the
+  // grouped sections rendered under "All". Default (no pick, or a pick
+  // that isn't present) leaves section order exactly as it always was.
+  const orderedCategoryEntries = (() => {
+    const entries = Object.entries(itemsByCategory);
+    if (!showcase.featuredCategory) return entries;
+    const idx = entries.findIndex(([cat]) => cat === showcase.featuredCategory);
+    if (idx <= 0) return entries;
+    const reordered = [...entries];
+    const [featured] = reordered.splice(idx, 1);
+    reordered.unshift(featured);
+    return reordered;
+  })();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -476,8 +502,10 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                 ))}
               </div>
             ) : (
-              /* If "All" is selected, render neatly grouped sections */
-              Object.entries(itemsByCategory).map(([catName, itemsInCat]) => (
+              /* If "All" is selected, render neatly grouped sections —
+                 in "orderedCategoryEntries" order, so the studio's chosen
+                 featured category (if any) renders first. */
+              orderedCategoryEntries.map(([catName, itemsInCat]) => (
                 <div key={catName} className="space-y-5 w-full">
                   <div className="flex items-center justify-between glass-hairline border-t-0 border-l-0 border-r-0 pb-3">
                     <div className="flex items-center gap-2.5">

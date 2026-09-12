@@ -1281,6 +1281,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
 
+              <div className="space-y-2 sm:col-span-2">
+                <label className="block font-space-grotesk font-semibold text-slate-700">
+                  Featured Category (shows first)
+                </label>
+                <select
+                  value={currentShowcase.featuredCategory || ''}
+                  onChange={(e) =>
+                    onUpdateShowcase({
+                      ...currentShowcase,
+                      featuredCategory: e.target.value || undefined,
+                    })
+                  }
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-space-grotesk focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                >
+                  <option value="">Default order (as items were added)</option>
+                  {Array.from(new Set(selectedItems.map((i) => i.category))).map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400">
+                  Puts this category first when the client views "All" — everything else keeps its normal order. Leave on "Default order" to change nothing.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700 flex items-center gap-1">
                   <Lock className="w-3 h-3 text-amber-500" />
