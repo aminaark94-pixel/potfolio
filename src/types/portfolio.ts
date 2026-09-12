@@ -14,11 +14,9 @@ export interface PortfolioItem {
   keywords: string[];
   custom?: boolean;
   featured?: boolean;
-  // Hides this item from the admin catalog browser only (e.g. a confirmed
-  // duplicate the admin doesn't want to see while curating new showcases)
-  // — has NO effect on any existing showcase, which still renders it
-  // normally since showcases reference items by id directly, not through
-  // the catalog browser's filtered list.
+  // Hidden from browse/search everywhere in the admin catalog, WITHOUT
+  // deleting the item — any showcase that already links to it (e.g. sent
+  // to a client) keeps working exactly as before.
   hidden?: boolean;
 }
 
@@ -77,6 +75,12 @@ export interface Showcase {
   // 'grouped' shows separate sections per category with headers, 'flow'
   // shows every item together in one continuous gallery.
   layoutMode?: 'grouped' | 'flow';
+  // Which category should render first when the client views "All"
+  // categories (e.g. show "Brand Guidelines" before "Logos" even though
+  // logos were added first). Undefined/unset = default order, i.e. the
+  // order categories were first encountered in item_ids — unchanged for
+  // every existing showcase that hasn't picked one.
+  featuredCategory?: string;
   // Which hero design to show at the top of the client page. Undefined/
   // 'classic' = the original hero (unchanged, safe default for every
   // existing showcase). 'animated-mosaic' = new mouse-parallax image

@@ -78,7 +78,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
         item.category.toLowerCase().includes(q) ||
         item.keywords.some((kw) => kw.toLowerCase().includes(q));
 
-      return matchCat && matchSubcat && matchMedia && matchQuery;
+      return !item.hidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
   }, [items, searchQuery, selectedCategory, selectedSubcategory, mediaFilter]);
 
