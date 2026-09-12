@@ -87,11 +87,23 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
   const [skippedCount, setSkippedCount] = useState(0);
   const [hidingIds, setHidingIds] = useState<Set<string>>(new Set());
   const [showHiddenPanel, setShowHiddenPanel] = useState(false);
+  // Tracks items hidden during THIS scan session so the results list can
+  // show an immediate "Hidden" confirmation instead of looking frozen —
+  // the scan's `groups` snapshot never re-runs on its own.
+  const [justHiddenIds, setJustHiddenIds] = useState<Set<string>>(new Set());
 
   const handleToggleHide = async (itemId: string, currentlyHidden: boolean) => {
     setHidingIds((prev) => new Set(prev).add(itemId));
     try {
       await onSetItemHidden(itemId, !currentlyHidden);
+      setJustHiddenIds((prev) => {
+        const next = new Set(prev);
+        if (!currentlyHidden) next.add(itemId);
+        else next.delete(itemId);
+        return next;
+      });
+    } catch (e) {
+      alert('Could not hide this item — please check your connection and try again.');
     } finally {
       setHidingIds((prev) => {
         const next = new Set(prev);
@@ -261,7 +273,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                 <>
                   <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                     Found {groups.length} group{groups.length === 1 ? '' : 's'} of likely duplicates. Nothing has been changed —
-                    review each group and remove the extra copy yourself (from a showcase, or permanently from the catalog) if you agree it's a repeat.
+                    review each group and click "Hide" on the repeat(s) you want gone from browse/search.
                   </p>
                   {groups.map((group, gi) => (
                     <div key={gi} className="border border-slate-200 rounded-2xl p-4 space-y-2">
@@ -269,13 +281,22 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                         Group {gi + 1} — {group.items.length} matches
                       </p>
                       <div className="flex gap-3 overflow-x-auto pb-1">
-                        {group.items.map((item) => (
-                          <div key={item.id} className="shrink-0 w-28">
-                            <img
-                              src={item.thumb_small || item.thumb || ''}
-                              alt={item.name}
-                              className="w-28 h-28 object-cover rounded-xl border border-slate-200"
-                            />
+                        {group.items.map((item) => {
+                          const isHiddenNow = item.hidden || justHiddenIds.has(item.id);
+                          return (
+                          <div key={item.id} className={`shrink-0 w-28 transition-opacity ${isHiddenNow ? 'opacity-40' : ''}`}>
+                            <div className="relative">
+                              <img
+                                src={item.thumb_small || item.thumb || ''}
+                                alt={item.name}
+                                className="w-28 h-28 object-cover rounded-xl border border-slate-200"
+                              />
+                              {isHiddenNow && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 rounded-xl">
+                                  <span className="text-[10px] font-bold text-white bg-slate-900/80 px-2 py-1 rounded-full">Hidden</span>
+                                </div>
+                              )}
+                            </div>
                             <p className="text-[11px] font-semibold text-slate-700 mt-1 truncate" title={item.name}>
                               {item.name}
                             </p>
@@ -291,12 +312,20 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                               </a>
                             )}
                             <button
-                              onClick={() => handleToggleHide(item.id, false)}
+                              onClick={() => handleToggleHide(item.id, isHiddenNow)}
                               disabled={hidingIds.has(item.id)}
-                              className="w-full mt-1.5 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                              className={`w-full mt-1.5 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer disabled:opacity-50 ${
+                                isHiddenNow
+                                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                                  : 'bg-rose-50 hover:bg-rose-100 text-rose-700'
+                              }`}
                             >
                               {hidingIds.has(item.id) ? (
-                                'Hiding...'
+                                'Working...'
+                              ) : isHiddenNow ? (
+                                <>
+                                  <CheckCircle2 className="w-3 h-3" /> Hidden — Undo
+                                </>
                               ) : (
                                 <>
                                   <EyeOff className="w-3 h-3" /> Hide
@@ -304,7 +333,8 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({ isOp
                               )}
                             </button>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
