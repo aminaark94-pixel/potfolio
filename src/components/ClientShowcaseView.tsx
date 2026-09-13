@@ -488,7 +488,10 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             {/* If a specific category is chosen, OR the showcase is set to
                 "flow" layout, render everything in one flat gallery. */}
             {selectedCategory !== 'All' || showcase.layoutMode === 'flow' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full auto-rows-max">
+              <div className={showcase.galleryOrientation === 'columns' 
+                ? "columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 w-full"
+                : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full auto-rows-max"
+              }>
                 {filteredItems.map((item, index) => (
                   <ShowcaseCard
                     key={item.id}
@@ -521,7 +524,10 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full auto-rows-max">
+                  <div className={showcase.galleryOrientation === 'columns'
+                    ? "columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 w-full"
+                    : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full auto-rows-max"
+                  }>
                     {itemsInCat.map((item, index) => (
                       <ShowcaseCard
                         key={item.id}

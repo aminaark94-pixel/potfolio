@@ -94,6 +94,9 @@ export interface Showcase {
   // every existing showcase). 'parallax-scroll' = new 2-column staggered
   // grid where each image parallax-shifts within its frame as you scroll.
   galleryTemplate?: 'masonry' | 'parallax-scroll';
+  // Gallery display orientation: 'grid' for horizontal (1 2 3 / 4 5 6),
+  // 'columns' for vertical (1 / 2 / 3). Defaults to 'grid' for modern look.
+  galleryOrientation?: 'grid' | 'columns';
   feedback?: Record<string, ClientFeedback>;
   createdAt: string;
   updatedAt: string;

@@ -1285,6 +1285,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="space-y-2 sm:col-span-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700">
+                  Gallery Orientation
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateShowcase({ ...currentShowcase, galleryOrientation: 'grid' })}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                      (currentShowcase.galleryOrientation || 'grid') === 'grid'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Horizontal (Grid)
+                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">1 2 3 / 4 5 6</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateShowcase({ ...currentShowcase, galleryOrientation: 'columns' })}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-space-grotesk font-bold border transition cursor-pointer ${
+                      currentShowcase.galleryOrientation === 'columns'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Vertical (Columns)
+                    <span className="block font-normal opacity-80 text-[10px] mt-0.5">1 / 2 / 3</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <label className="block font-space-grotesk font-semibold text-slate-700">
                   Featured Category (shows first)
                 </label>
                 <select
