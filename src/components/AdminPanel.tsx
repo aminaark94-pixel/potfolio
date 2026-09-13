@@ -11,6 +11,7 @@ import {
   Sliders, 
   Layers, 
   Eye, 
+  Maximize2,
   Palette, 
   Lock, 
   Sparkles, 
@@ -105,6 +106,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
   const [isDuplicateFinderOpen, setIsDuplicateFinderOpen] = useState(false);
+  const [isCuratedFullscreenOpen, setIsCuratedFullscreenOpen] = useState(false);
   const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
@@ -1339,6 +1341,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {selectedItems.length > 0 && (
                 <button
+                  onClick={() => setIsCuratedFullscreenOpen(true)}
+                  title="Expand to full screen"
+                  className="text-xs font-mono text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  <span>Expand</span>
+                </button>
+              )}
+
+              {selectedItems.length > 0 && (
+                <button
                   onClick={handleClearAllSelected}
                   className="text-xs font-mono text-slate-400 hover:text-rose-600 transition-colors flex items-center gap-1 cursor-pointer"
                 >
@@ -1420,6 +1433,102 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             )}
           </div>
+
+          {isCuratedFullscreenOpen && (
+            <>
+              <div
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40"
+                onClick={() => setIsCuratedFullscreenOpen(false)}
+              />
+              <div
+                className="fixed z-50 bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col"
+                style={{ top: '15px', left: '15px', right: '15px', bottom: '15px' }}
+              >
+                <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-space-grotesk font-bold text-base text-slate-900">
+                      Curated Work in this Showcase
+                    </h4>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                      {selectedItems.length} selected
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsCuratedFullscreenOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {selectedItems.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => setDraggedItemIndex(idx)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedItemIndex !== null) {
+                            handleReorderByDrag(draggedItemIndex, idx);
+                          }
+                          setDraggedItemIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedItemIndex(null)}
+                        className={`relative group rounded-xl overflow-hidden border bg-slate-50 shadow-sm cursor-grab active:cursor-grabbing transition-opacity ${
+                          draggedItemIndex === idx ? 'opacity-40 border-indigo-400' : 'border-slate-200'
+                        }`}
+                      >
+                        <img
+                          src={item.thumb_small || item.thumb || ''}
+                          alt={item.name}
+                          className="w-full h-24 sm:h-28 object-cover"
+                        />
+                        <button
+                          onClick={() => handleToggleItemInShowcase(item.id)}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/80 hover:bg-rose-600 text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="Remove from showcase"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+
+                        <div className="absolute top-1 left-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => handleMoveItemInShowcase(idx, -1)}
+                            disabled={idx === 0}
+                            title="Move earlier"
+                            className="p-0.5 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            <ChevronLeft className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveItemInShowcase(idx, 1)}
+                            disabled={idx === selectedItems.length - 1}
+                            title="Move later"
+                            className="p-0.5 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <span className="absolute bottom-6 left-1 text-[9px] font-mono font-bold text-white bg-slate-900/70 px-1 rounded">
+                          #{idx + 1}
+                        </span>
+                        <span className="absolute bottom-6 right-1 p-0.5 rounded bg-slate-900/70 text-white/70 opacity-0 group-hover:opacity-100 transition-all">
+                          <GripVertical className="w-2.5 h-2.5" />
+                        </span>
+                        <div className="p-1 text-[10px] font-space-grotesk text-slate-700 font-medium truncate">
+                          {item.name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
