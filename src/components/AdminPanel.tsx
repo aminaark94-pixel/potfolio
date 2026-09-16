@@ -395,7 +395,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleAIRenameGeneric = async () => {
     const itemsToRename = allItems.filter(
-      (i) => i.custom && looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small)
+      (i) => looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small)
     );
     if (itemsToRename.length === 0) {
       setBulkActionMessage('No generically-named items found — everything already has a real name.');
