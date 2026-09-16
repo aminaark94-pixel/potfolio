@@ -26,7 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
-  Filter
+  Filter,
+  Copy
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -549,6 +550,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleCloneShowcase = () => {
+    if (!currentShowcase) return;
+    
+    // Create unique slug for cloned showcase
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const newSlug = `${currentShowcase.slug}-copy-${randomSuffix}`;
+    
+    // Create new showcase with cloned data
+    const clonedShowcase: Showcase = {
+      ...currentShowcase,
+      id: `showcase-${Date.now()}-${randomSuffix}`,
+      slug: newSlug,
+      heading: `${currentShowcase.heading} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // Create cloned showcase
+    try {
+      onCreateShowcase(clonedShowcase);
+      // Switch to the cloned showcase
+      onSelectShowcase(newSlug);
+    } catch (err) {
+      console.error('Failed to clone showcase:', err);
+      alert('❌ Failed to clone showcase. Please try again.');
+    }
   };
 
   return (
@@ -1113,6 +1142,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 text-slate-500" />}
                 <span>{copiedLink ? 'Copied Link' : 'Copy Link'}</span>
+              </button>
+
+              {/* Clone Showcase */}
+              <button
+                onClick={handleCloneShowcase}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-space-grotesk text-xs font-semibold transition-all cursor-pointer"
+                title="Duplicate this showcase with all settings, items, and configurations"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-600" />
+                <span>Clone</span>
               </button>
 
               {/* Delete Showcase */}
