@@ -786,24 +786,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="text-[10px] text-slate-400 font-mono">
                       {(currentShowcase.heroImageIds?.length || 0)} of {currentShowcase.heroTemplate === 'curved-3d' ? '20' : '7'} selected
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsHeroImagesFullscreenOpen(true)}
+                      className="text-[10px] font-bold text-slate-600 hover:text-slate-700 hover:bg-slate-100 px-2 py-1 rounded cursor-pointer transition"
+                      title="Expand to full screen - select and reorder images"
+                    >
+                      <span>Expand</span>
+                    </button>
                     {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setIsHeroImagesFullscreenOpen(true)}
-                          className="text-[10px] font-bold text-slate-600 hover:text-slate-700 hover:bg-slate-100 px-2 py-1 rounded cursor-pointer transition"
-                          title="Expand to full screen"
-                        >
-                          <span>Expand</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
-                          className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                        >
-                          Reset to Auto
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
+                        className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                      >
+                        Reset to Auto
+                      </button>
                     )}
                   </div>
                 </div>
