@@ -1631,8 +1631,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </>
           )}
 
-          {/* Hero Images Fullscreen Modal */}
-          {isHeroImagesFullscreenOpen && currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
+          {/* Hero Images Fullscreen Modal - SAME AS CURATED WORK EXPAND */}
+          {isHeroImagesFullscreenOpen && (
             <>
               <div
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40"
@@ -1648,7 +1648,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       {currentShowcase.heroTemplate === 'curved-3d' ? 'Curved 3D Images' : 'Hero Collage Images'}
                     </h4>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                      {currentShowcase.heroImageIds.length} selected
+                      {currentShowcase.heroImageIds?.length || 0} selected
                     </span>
                   </div>
                   <button
@@ -1660,43 +1660,115 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5">
-                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
-                    {selectedItems
-                      .filter(item => currentShowcase.heroImageIds?.includes(item.id))
-                      .sort((a, b) => 
-                        (currentShowcase.heroImageIds?.indexOf(a.id) ?? 0) - 
-                        (currentShowcase.heroImageIds?.indexOf(b.id) ?? 0)
-                      )
-                      .map((item, idx) => {
-                        const heroIds = currentShowcase.heroImageIds || [];
-                        return (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {selectedItems.map((item, idx) => {
+                      const heroIds = currentShowcase.heroImageIds || [];
+                      const isSelected = heroIds.includes(item.id);
+                      const maxLimit = currentShowcase.heroTemplate === 'curved-3d' ? 20 : 7;
+                      const atLimit = heroIds.length >= maxLimit;
+
+                      return (
+                        <div
+                          key={item.id}
+                          draggable={isSelected}
+                          onDragStart={() => setDraggedItemIndex(heroIds.indexOf(item.id))}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (draggedItemIndex !== null && draggedItemIndex !== heroIds.indexOf(item.id)) {
+                              const newOrder = [...heroIds];
+                              const draggedId = newOrder[draggedItemIndex];
+                              newOrder.splice(draggedItemIndex, 1);
+                              newOrder.splice(heroIds.indexOf(item.id), 0, draggedId);
+                              onUpdateShowcase({ ...currentShowcase, heroImageIds: newOrder });
+                            }
+                            setDraggedItemIndex(null);
+                          }}
+                          onDragEnd={() => setDraggedItemIndex(null)}
+                          className={`relative group rounded-xl overflow-hidden border bg-slate-50 shadow-sm cursor-pointer transition-opacity ${
+                            draggedItemIndex !== null && draggedItemIndex === heroIds.indexOf(item.id) 
+                              ? 'opacity-40 border-emerald-400' 
+                              : isSelected
+                              ? 'border-emerald-600 ring-2 ring-emerald-200'
+                              : 'border-slate-200 hover:border-slate-300'
+                          } ${
+                            !isSelected && atLimit ? 'opacity-40 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          <img
+                            src={item.thumb_small || item.thumb || ''}
+                            alt={item.name}
+                            className="w-full h-24 sm:h-28 object-cover"
+                          />
+
+                          {/* Selection Toggle */}
                           <button
-                            key={item.id}
-                            type="button"
                             onClick={() => {
                               const current = heroIds;
-                              const next = current.filter((id) => id !== item.id);
+                              const next = isSelected
+                                ? current.filter((id) => id !== item.id)
+                                : atLimit
+                                ? current
+                                : [...current, item.id];
                               onUpdateShowcase({ ...currentShowcase, heroImageIds: next });
                             }}
-                            title={`${item.name} - Click to remove`}
-                            className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 shadow-sm hover:shadow-md transition-all hover:border-emerald-400"
+                            disabled={!isSelected && atLimit}
+                            className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/80 hover:bg-emerald-600 text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={isSelected ? 'Deselect' : atLimit ? 'Limit reached' : 'Select'}
                           >
-                            <img
-                              src={item.thumb_small || item.thumb || ''}
-                              alt={item.name}
-                              className="w-full h-20 sm:h-24 md:h-28 object-cover"
-                            />
-                            <div className="absolute top-0 left-0 right-0 bottom-0 bg-slate-900/0 group-hover:bg-slate-900/40 transition-all flex items-center justify-center">
-                              <span className="text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-rose-600 px-2 py-1 rounded">
-                                Remove
-                              </span>
-                            </div>
-                            <span className="absolute bottom-1 right-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                              #{idx + 1}
-                            </span>
+                            {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                           </button>
-                        );
-                      })}
+
+                          {/* Reorder Controls - Only for Selected Items */}
+                          {isSelected && (
+                            <div className="absolute top-1 left-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                              <button
+                                onClick={() => {
+                                  const currentIndex = heroIds.indexOf(item.id);
+                                  if (currentIndex > 0) {
+                                    const newOrder = [...heroIds];
+                                    [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+                                    onUpdateShowcase({ ...currentShowcase, heroImageIds: newOrder });
+                                  }
+                                }}
+                                className="p-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={heroIds.indexOf(item.id) === 0}
+                                title="Move earlier"
+                              >
+                                <ChevronLeft className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const currentIndex = heroIds.indexOf(item.id);
+                                  if (currentIndex < heroIds.length - 1) {
+                                    const newOrder = [...heroIds];
+                                    [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+                                    onUpdateShowcase({ ...currentShowcase, heroImageIds: newOrder });
+                                  }
+                                }}
+                                className="p-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={heroIds.indexOf(item.id) === heroIds.length - 1}
+                                title="Move later"
+                              >
+                                <ChevronRight className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Position Badge for Selected Items */}
+                          {isSelected && (
+                            <span className="absolute bottom-1 right-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                              #{heroIds.indexOf(item.id) + 1}
+                            </span>
+                          )}
+
+                          {/* Item Name on Hover */}
+                          <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-gradient-to-t from-slate-900/80 to-transparent opacity-0 group-hover:opacity-100 transition-all">
+                            <p className="text-[10px] text-white font-semibold truncate">{item.name}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
