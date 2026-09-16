@@ -273,7 +273,12 @@ export async function setLastDriveSyncTime(isoTimestamp: string): Promise<void> 
 export function getAllPortfolioItems(): PortfolioItem[] {
   const base = initializeCatalog();
   const custom = loadStoredCustomItems();
-  return [...custom, ...base];
+  // A custom entry sharing an id with a base item is an *override*
+  // (e.g. the original item was renamed/edited), not a duplicate —
+  // so the base copy is dropped in favour of the custom one.
+  const overriddenIds = new Set(custom.map((c) => c.id));
+  const filteredBase = base.filter((b) => !overriddenIds.has(b.id));
+  return [...custom, ...filteredBase];
 }
 
 export function slugify(text: string): string {
