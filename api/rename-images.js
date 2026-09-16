@@ -75,7 +75,7 @@ async function callGroqVision(imageUrl, timeoutMs = 15000) {
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: 'qwen/qwen3.6-27b',
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: buildVisionMessages(imageUrl),
           temperature: 0.4,
           max_tokens: 60,
@@ -83,9 +83,7 @@ async function callGroqVision(imageUrl, timeoutMs = 15000) {
           // simple naming task, not something that needs a reasoning trace,
           // and the trace was leaking into the output. "none" fully
           // disables it for the qwen3 family (confirmed supported).
-          reasoning_effort: 'none',
-          reasoning_format: 'hidden',
-        }),
+                }),
         signal: controller.signal,
       });
 
