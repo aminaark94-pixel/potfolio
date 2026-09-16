@@ -332,6 +332,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       item_ids: [],
       theme: newTheme,
       heroStyle: 'fluid-blob',
+      // Defaults for new showcases only — existing showcases already sent
+      // to clients keep whatever they currently have (or nothing, which
+      // falls back to the original classic/grouped/grid look untouched).
+      heroTemplate: 'curved-3d',
+      layoutMode: 'flow',
+      galleryOrientation: 'columns',
       clientNote: '',
       ctaText: 'Approve & Get Started',
       ctaLink: '',

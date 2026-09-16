@@ -69,6 +69,9 @@ export const PortfolioTemplatesLibrary: React.FC<PortfolioTemplatesLibraryProps>
       item_ids: t.item_ids,
       theme: 'indigo' as ThemeId,
       heroStyle: 'minimal-glow' as any,
+      heroTemplate: 'curved-3d',
+      layoutMode: 'flow',
+      galleryOrientation: 'columns',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
