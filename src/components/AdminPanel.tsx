@@ -1631,7 +1631,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* Hero Images Fullscreen Modal - MOVED OUTSIDE currentShowcase so it renders immediately */}
+      {/* Hero Images Fullscreen Modal — rendered at the top level (not
+          nested in any activeSection block) so the Expand button on the
+          "Hero & Gallery" tab opens it immediately, without needing to
+          switch to the "Showcases" tab first. */}
       {isHeroImagesFullscreenOpen && (
         <>
           <div
