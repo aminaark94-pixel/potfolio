@@ -27,7 +27,8 @@ import {
   ChevronRight,
   GripVertical,
   Filter,
-  Copy
+  Copy,
+  GitMerge
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -52,6 +53,7 @@ import { CoverLetterTab } from './CoverLetterTab';
 import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
 import { DuplicateFinderModal } from './DuplicateFinderModal';
 import { DriveLinksTab } from './DriveLinksTab';
+import { MergeShowcasesModal } from './MergeShowcasesModal';
 import confetti from 'canvas-confetti';
 
 interface AdminPanelProps {
@@ -92,6 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Showcase Creator form state
   const [isCreatingShowcase, setIsCreatingShowcase] = useState(false);
+  const [isMergingShowcases, setIsMergingShowcases] = useState(false);
   const [newBrandName, setNewBrandName] = useState('My Studio');
   const [newClientHeading, setNewClientHeading] = useState('');
   const [newTagline, setNewTagline] = useState('A selection of work, put together specifically for you.');
@@ -906,6 +909,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           >
             <Plus className="w-4 h-4 text-indigo-600" />
             <span>Create New Showcase</span>
+          </button>
+
+          <button
+            onClick={() => setIsMergingShowcases(true)}
+            disabled={Object.keys(showcases).length < 2}
+            title={Object.keys(showcases).length < 2 ? 'Need at least 2 showcases to merge' : 'Combine 2+ showcases into a new one'}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/40 hover:bg-indigo-500/60 border border-white/20 text-white font-space-grotesk text-xs font-semibold transition-all hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <GitMerge className="w-4 h-4 text-emerald-300" />
+            <span>Merge Showcases</span>
           </button>
 
           <button
@@ -2188,6 +2201,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         onClose={() => setIsDuplicateFinderOpen(false)}
         items={allItems.filter((i) => i.custom)}
         onSetItemHidden={onSetItemHidden}
+      />
+
+      <MergeShowcasesModal
+        isOpen={isMergingShowcases}
+        onClose={() => setIsMergingShowcases(false)}
+        showcases={showcases}
+        onCreateShowcase={onCreateShowcase}
+        onSelectShowcase={onSelectShowcase}
       />
     </div>
   );
