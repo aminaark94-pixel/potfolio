@@ -54,6 +54,7 @@ import { PortfolioTemplatesLibrary } from './PortfolioTemplatesLibrary';
 import { DuplicateFinderModal } from './DuplicateFinderModal';
 import { DriveLinksTab } from './DriveLinksTab';
 import { MergeShowcasesModal } from './MergeShowcasesModal';
+import { ShowcaseGroupingSettings } from './ShowcaseGroupingSettings';
 import confetti from 'canvas-confetti';
 
 interface AdminPanelProps {
@@ -849,6 +850,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             )}
 
+            {/* Grouping & category naming — same controls as the Showcases
+                tab, surfaced here too since this is the "how it looks" tab. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-200">
+              <ShowcaseGroupingSettings
+                showcase={currentShowcase}
+                items={selectedItems}
+                onUpdateShowcase={onUpdateShowcase}
+              />
+            </div>
+
             {/* Launch Client View & Copy Link Buttons */}
             <div className="pt-4 border-t border-slate-200 space-y-3">
               <p className="text-xs text-slate-500 font-space-grotesk">Preview & Share</p>
@@ -1349,6 +1360,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Hide/show the category heading row, and give each category
+                  a client-facing name just for this showcase. */}
+              <ShowcaseGroupingSettings
+                showcase={currentShowcase}
+                items={selectedItems}
+                onUpdateShowcase={onUpdateShowcase}
+              />
 
               <div className="space-y-2 sm:col-span-2">
                 <label className="block font-space-grotesk font-semibold text-slate-700">
