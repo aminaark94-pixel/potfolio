@@ -107,6 +107,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
   const [isDuplicateFinderOpen, setIsDuplicateFinderOpen] = useState(false);
   const [isCuratedFullscreenOpen, setIsCuratedFullscreenOpen] = useState(false);
+  const [isHeroImagesFullscreenOpen, setIsHeroImagesFullscreenOpen] = useState(false);
   const [bulkSubcategoryValue, setBulkSubcategoryValue] = useState('');
   const [isSavingAsTemplate, setIsSavingAsTemplate] = useState(false);
   const [templateFormName, setTemplateFormName] = useState('');
@@ -754,13 +755,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       {(currentShowcase.heroImageIds?.length || 0)} of {currentShowcase.heroTemplate === 'curved-3d' ? '20' : '7'} selected
                     </span>
                     {currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
-                        className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        Reset to Auto
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setIsHeroImagesFullscreenOpen(true)}
+                          className="text-[10px] font-bold text-slate-600 hover:text-slate-700 hover:bg-slate-100 px-2 py-1 rounded cursor-pointer transition"
+                          title="Expand to full screen"
+                        >
+                          <span>Expand</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateShowcase({ ...currentShowcase, heroImageIds: [] })}
+                          className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          Reset to Auto
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1563,6 +1574,88 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Hero Images Fullscreen Modal */}
+          {isHeroImagesFullscreenOpen && currentShowcase.heroImageIds && currentShowcase.heroImageIds.length > 0 && (
+            <>
+              <div
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40"
+                onClick={() => setIsHeroImagesFullscreenOpen(false)}
+              />
+              <div
+                className="fixed z-50 bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col"
+                style={{ top: '15px', left: '15px', right: '15px', bottom: '15px' }}
+              >
+                <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-space-grotesk font-bold text-base text-slate-900">
+                      {currentShowcase.heroTemplate === 'curved-3d' ? 'Curved 3D Images' : 'Hero Collage Images'}
+                    </h4>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                      {currentShowcase.heroImageIds.length} selected
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsHeroImagesFullscreenOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+                    {selectedItems
+                      .filter(item => currentShowcase.heroImageIds?.includes(item.id))
+                      .sort((a, b) => 
+                        (currentShowcase.heroImageIds?.indexOf(a.id) ?? 0) - 
+                        (currentShowcase.heroImageIds?.indexOf(b.id) ?? 0)
+                      )
+                      .map((item, idx) => {
+                        const heroIds = currentShowcase.heroImageIds || [];
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const current = heroIds;
+                              const next = current.filter((id) => id !== item.id);
+                              onUpdateShowcase({ ...currentShowcase, heroImageIds: next });
+                            }}
+                            title={`${item.name} - Click to remove`}
+                            className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 shadow-sm hover:shadow-md transition-all hover:border-emerald-400"
+                          >
+                            <img
+                              src={item.thumb_small || item.thumb || ''}
+                              alt={item.name}
+                              className="w-full h-20 sm:h-24 md:h-28 object-cover"
+                            />
+                            <div className="absolute top-0 left-0 right-0 bottom-0 bg-slate-900/0 group-hover:bg-slate-900/40 transition-all flex items-center justify-center">
+                              <span className="text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-rose-600 px-2 py-1 rounded">
+                                Remove
+                              </span>
+                            </div>
+                            <span className="absolute bottom-1 right-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                              #{idx + 1}
+                            </span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                <div className="p-5 border-t border-slate-100 shrink-0 bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => setIsHeroImagesFullscreenOpen(false)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-space-grotesk font-bold text-sm transition-all cursor-pointer"
+                  >
+                    Done
+                  </button>
                 </div>
               </div>
             </>
