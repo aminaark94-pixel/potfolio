@@ -84,6 +84,14 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       ]
     : categoriesDefaultOrder;
 
+  // What the CLIENT should see a category called. The studio can rename a
+  // category for this showcase only (e.g. "Logos & Monograms" reading as
+  // "Identity Marks") — the underlying catalog category never changes, so
+  // filtering still works off the real name. Anything not renamed falls
+  // back to the original, so existing showcases read exactly as before.
+  const labelFor = (cat: string): string =>
+    showcase.categoryLabels?.[cat]?.trim() || cat;
+
   // Filter items
   const filteredItems = selectedCategory === 'All'
     ? showcaseItems
@@ -455,7 +463,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                     boxShadow: `0 3px 16px ${theme.accentGlow}`,
                   } : {}}
                 >
-                  <span>{cat}</span>
+                  <span>{cat === 'All' ? 'All' : labelFor(cat)}</span>
                   <span className="text-[10px] font-space-mono opacity-80">({count})</span>
                 </button>
               );
@@ -510,19 +518,24 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                  featured category (if any) renders first. */
               orderedCategoryEntries.map(([catName, itemsInCat]) => (
                 <div key={catName} className="space-y-5 w-full">
-                  <div className="flex items-center justify-between glass-hairline border-t-0 border-l-0 border-r-0 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <h2 className="font-space-grotesk font-bold text-xl sm:text-2xl glass-text-primary">
-                        {catName}
-                      </h2>
-                      <span 
-                        className="px-2.5 py-0.5 rounded-full text-xs font-space-mono font-bold glass-chip"
-                        style={{ color: theme.accentSoft }}
-                      >
-                        {itemsInCat.length}
-                      </span>
+                  {/* The heading row is optional per showcase. Hiding it
+                      keeps the grouping (and the section order) intact —
+                      the client just doesn't see the category name. */}
+                  {!showcase.hideGroupHeadings && (
+                    <div className="flex items-center justify-between glass-hairline border-t-0 border-l-0 border-r-0 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="font-space-grotesk font-bold text-xl sm:text-2xl glass-text-primary">
+                          {labelFor(catName)}
+                        </h2>
+                        <span 
+                          className="px-2.5 py-0.5 rounded-full text-xs font-space-mono font-bold glass-chip"
+                          style={{ color: theme.accentSoft }}
+                        >
+                          {itemsInCat.length}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className={showcase.galleryOrientation === 'columns'
                     ? "columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 w-full"
