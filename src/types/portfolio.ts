@@ -75,6 +75,18 @@ export interface Showcase {
   // 'grouped' shows separate sections per category with headers, 'flow'
   // shows every item together in one continuous gallery.
   layoutMode?: 'grouped' | 'flow';
+  // Only applies in 'grouped' layout. When true, the title row above each
+  // category section (name + count) is not rendered — the work still sits
+  // in its own grouped section, it's just untitled. Undefined/false =
+  // headings shown, i.e. exactly how every existing showcase looks today.
+  hideGroupHeadings?: boolean;
+  // Per-showcase display names for categories, e.g.
+  //   { "Logos & Monograms": "Identity Marks" }
+  // This ONLY changes what the client sees (section headings, filter
+  // tabs, lightbox caption) — the catalog category itself is never
+  // renamed, so search, filtering and every other showcase are unaffected.
+  // Any category not listed here keeps its original name.
+  categoryLabels?: Record<string, string>;
   // Which category should render first when the client views "All"
   // categories (e.g. show "Brand Guidelines" before "Logos" even though
   // logos were added first). Undefined/unset = default order, i.e. the
