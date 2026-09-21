@@ -396,6 +396,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (/^untitled item\s*\d*$/i.test(n)) return true;
     if (/^[a-z]{2,6}[_-]?\d{3,}$/i.test(n)) return true;
     if (!/\s/.test(n) && /[_-]/.test(n) && n.length <= 40) return true;
+    // Short/vague names (e.g. "business events", "business events 2") don't
+    // say what the piece actually is — treat 3 words or fewer as generic too.
+    if (n.split(/\s+/).filter(Boolean).length <= 3) return true;
     return false;
   };
 
