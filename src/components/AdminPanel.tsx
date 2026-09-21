@@ -419,35 +419,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setRenameProgress({ done: 0, total: itemsToRename.length });
     setBulkActionMessage(null);
 
-    const BATCH_SIZE = 8;
+    const BATCH_SIZE = 5; // Reduced from 8 for better reliability
+    const MAX_RETRIES = 2;
     const updatedNames: Record<string, string> = {};
     const errors: string[] = [];
 
     for (let i = 0; i < itemsToRename.length; i += BATCH_SIZE) {
       const batch = itemsToRename.slice(i, i + BATCH_SIZE);
-      try {
-        const res = await fetch('/api/rename-images', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: batch.map((it) => ({
-              id: it.id,
-              imageUrl: it.thumb_large || it.thumb || it.thumb_small,
-            })),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Request failed');
-        (data.results || []).forEach((r: any) => {
-          if (r.name) updatedNames[r.id] = r.name;
-          else if (r.error) errors.push(`${r.id}: ${r.error}`);
-        });
-      } catch (e: any) {
-        errors.push(`Batch starting at item ${i + 1}: ${e.message}`);
+      let success = false;
+
+      // Retry logic for each batch
+      for (let attempt = 0; attempt < MAX_RETRIES && !success; attempt++) {
+        try {
+          const res = await fetch('/api/rename-images', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items: batch.map((it) => ({
+                id: it.id,
+                imageUrl: it.thumb_large || it.thumb || it.thumb_small,
+              })),
+            }),
+          });
+
+          const data = await res.json();
+          
+          if (!res.ok) {
+            throw new Error(data.error || `Request failed: ${res.status}`);
+          }
+
+          (data.results || []).forEach((r: any) => {
+            if (r.name) {
+              updatedNames[r.id] = r.name;
+            } else if (r.error) {
+              errors.push(`${r.id}: ${r.error}`);
+            }
+          });
+
+          success = true; // Mark batch as successful
+        } catch (e: any) {
+          if (attempt < MAX_RETRIES - 1) {
+            // Wait before retrying (exponential backoff)
+            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          } else {
+            // Final attempt failed
+            errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${e.message}`);
+          }
+        }
       }
-      setRenameProgress({ done: Math.min(i + BATCH_SIZE, itemsToRename.length), total: itemsToRename.length });
-      // Brief pause between batches — gentle on free-tier rate limits.
-      await new Promise((r) => setTimeout(r, 600));
+
+      setRenameProgress({ 
+        done: Math.min(i + BATCH_SIZE, itemsToRename.length), 
+        total: itemsToRename.length 
+      });
+
+      // Longer pause between batches to respect rate limits
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     const renamedItems = itemsToRename
@@ -469,7 +496,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsRenamingWithAI(false);
     setBulkActionMessage(
       `Renamed ${renamedItems.length} of ${itemsToRename.length} item(s) with AI.${
-        errors.length ? ` ${errors.length} failed — try selecting just those and running it again.` : ''
+        errors.length ? ` ${errors.length} failed — ${errors.join('; ')}` : ''
       }`
     );
   };
