@@ -43,15 +43,17 @@ function buildVisionMessages(imageUrl) {
 
 function cleanName(raw) {
   let text = raw || '';
-  // Qwen3.6 is a "thinking" model and can leak its reasoning trace into
-  // the response even with reasoning disabled — strip any <think>...</think>
-  // block (or an unclosed one) as a defensive safety net regardless of
-  // whether the API-level reasoning_effort/reasoning_format params worked.
+  // Aggressive cleanup of AI reasoning artifacts
+  // Multiple passes to catch all variations and edge cases
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
   text = text.replace(/<think>[\s\S]*$/gi, '');
+  text = text.replace(/^[\s\S]*?<\/think>\s*/gi, '');
+  text = text.replace(/\*\*Analysis[\s\S]*?(?=\n|$)/gi, '');
+  text = text.replace(/Note:[\s\S]*?(?=\n|$)/gi, '');
+  
   return text
     .trim()
-    .replace(/^["'“”]+|["'“”]+$/g, '')
+    .replace(/^["'""]+|["'""]+$/g, '')
     .replace(/[.!]+$/g, '')
     .replace(/\s+/g, ' ')
     .slice(0, 90);
