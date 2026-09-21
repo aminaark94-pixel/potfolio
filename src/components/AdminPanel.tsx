@@ -385,6 +385,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const looksGeneric = (name: string): boolean => {
     const n = (name || '').trim();
     if (!n) return true;
+    // Corrupted names left over from an earlier buggy AI run (e.g. a leaked
+    // <think>...</think> reasoning trace that got saved as the literal name)
+    // — catch these so re-running AI Rename repairs them too.
+    if (/<think[\s>]/i.test(n)) return true;
+    if (/\b(the user wants|as an ai|i cannot|i can't assist)\b/i.test(n)) return true;
+    if (n.length > 90) return true;
     if (/\.(png|jpe?g|webp|gif|heic|bmp|tiff?|svg)$/i.test(n)) return true;
     if (/^(img|image|pic|picture|photo|logo|screenshot|screen ?shot|asset|file|design|untitled|new|copy|doc|scan|dsc|final|draft|version|v)[\s_-]*\d*$/i.test(n)) return true;
     if (/^untitled item\s*\d*$/i.test(n)) return true;
