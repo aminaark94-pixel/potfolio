@@ -130,7 +130,10 @@ async function callMistralVision(imageUrl, timeoutMs = 15000) {
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: 'pixtral-large-latest',
+          // pixtral-large-latest is a Premier/licensed model and returns
+          // "Invalid model" on free-tier Mistral API keys. pixtral-12b-2409
+          // is the model actually available on the free tier.
+          model: 'pixtral-12b-2409',
           messages: buildVisionMessages(imageUrl),
           temperature: 0.4,
           max_tokens: 60,
@@ -168,7 +171,11 @@ async function nameOneImage(imageUrl) {
     return await callGroqVision(imageUrl);
   } catch (groqErr) {
     console.warn('Groq vision failed, falling back to Mistral:', groqErr.message);
-    return await callMistralVision(imageUrl);
+    try {
+      return await callMistralVision(imageUrl);
+    } catch (mistralErr) {
+      throw new Error(`Groq: ${groqErr.message} | Mistral: ${mistralErr.message}`);
+    }
   }
 }
 
