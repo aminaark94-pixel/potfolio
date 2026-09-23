@@ -62,6 +62,10 @@ export interface Showcase {
   heading: string;
   tagline: string;
   logo_url: string;
+  // Whether the logo (or brand name text, if no logo is set) is shown in
+  // the client page header. Undefined/true = shown (default). false =
+  // hidden entirely, even if logo_url still has a value saved.
+  showLogo?: boolean;
   item_ids: string[];
   theme: ThemeId;
   heroStyle: HeroStyle;
