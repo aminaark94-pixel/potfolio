@@ -189,9 +189,9 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                   src={getDriveVideoEmbed(item.drive_link) || ''}
                   allow="autoplay; encrypted-media; fullscreen"
                   allowFullScreen
-                  sandbox="allow-same-origin allow-scripts allow-presentation allow-popups"
                   className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
                   title={item.name}
+                  style={{ border: 'none' }}
                 />
                 {/* Fallback link if iframe doesn't load */}
                 {item.drive_link && (
