@@ -184,29 +184,39 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           {/* Main Media Viewer */}
           <div className="relative w-full flex items-center justify-center overflow-auto max-h-[72vh] rounded-3xl bg-slate-950/80 border border-white/15 p-2 sm:p-4 shadow-2xl">
             {item.mediaType === 'video' ? (
-              <div className="w-full">
-                <iframe
-                  src={getDriveVideoEmbed(item.drive_link) || ''}
-                  allow="autoplay; encrypted-media; fullscreen"
-                  allowFullScreen
-                  className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
-                  title={item.name}
-                  style={{ border: 'none' }}
-                />
-                {/* Fallback link if iframe doesn't load */}
-                {item.drive_link && (
-                  <p className="text-center text-xs text-slate-500 mt-2">
-                    Video not playing? 
-                    <a 
-                      href={item.drive_link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-semibold ml-1"
-                    >
-                      Open on Google Drive
-                    </a>
+              <div className="w-full flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl p-8 min-h-[68vh]">
+                {/* Video Icon */}
+                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <svg className="w-10 h-10 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+
+                {/* Text */}
+                <div className="text-center space-y-2">
+                  <h4 className="font-space-grotesk font-bold text-lg text-white">Video Content</h4>
+                  <p className="text-sm text-slate-400 max-w-xs">
+                    Open this video on Google Drive to watch in full quality
                   </p>
+                </div>
+
+                {/* Watch Button */}
+                {item.drive_link && (
+                  <a
+                    href={item.drive_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-space-grotesk font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    <span>Watch on Google Drive</span>
+                  </a>
                 )}
+
+                {/* Small Note */}
+                <p className="text-xs text-slate-500 mt-2">Opens in a new tab</p>
               </div>
             ) : (
               <img
