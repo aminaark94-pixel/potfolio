@@ -54,8 +54,10 @@ export function getDriveVideoEmbed(driveUrl: string | null): string | null {
   const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
     const fileId = match[1];
-    // Use /preview for Google Drive video streaming via iframe
-    // This works for any file size and is the recommended way to embed Google Drive files
+    // Google Drive video embedding:
+    // Option 1: /preview - standard preview URL (works if file is publicly shared)
+    // Option 2: /view - direct view URL with embedded player
+    // Try /preview first for better player controls
     return `https://drive.google.com/file/d/${fileId}/preview`;
   }
   return driveUrl;

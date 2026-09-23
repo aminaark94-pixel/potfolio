@@ -184,14 +184,30 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           {/* Main Media Viewer */}
           <div className="relative w-full flex items-center justify-center overflow-auto max-h-[72vh] rounded-3xl bg-slate-950/80 border border-white/15 p-2 sm:p-4 shadow-2xl">
             {item.mediaType === 'video' ? (
-              <iframe
-                src={getDriveVideoEmbed(item.drive_link) || ''}
-                allow="autoplay; encrypted-media; fullscreen"
-                allowFullScreen
-                sandbox="allow-same-origin allow-scripts allow-presentation allow-popups"
-                className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
-                title={item.name}
-              />
+              <div className="w-full">
+                <iframe
+                  src={getDriveVideoEmbed(item.drive_link) || ''}
+                  allow="autoplay; encrypted-media; fullscreen"
+                  allowFullScreen
+                  sandbox="allow-same-origin allow-scripts allow-presentation allow-popups"
+                  className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
+                  title={item.name}
+                />
+                {/* Fallback link if iframe doesn't load */}
+                {item.drive_link && (
+                  <p className="text-center text-xs text-slate-500 mt-2">
+                    Video not playing? 
+                    <a 
+                      href={item.drive_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline font-semibold ml-1"
+                    >
+                      Open on Google Drive
+                    </a>
+                  </p>
+                )}
+              </div>
             ) : (
               <img
                 src={imageSrc}
