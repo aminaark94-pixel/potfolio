@@ -403,16 +403,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleAIRenameGeneric = async () => {
-    const itemsToRename = allItems.filter(
+    const allGenericItems = allItems.filter(
       (i) => looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small)
     );
-    if (itemsToRename.length === 0) {
+    if (allGenericItems.length === 0) {
       setBulkActionMessage('No generically-named items found — everything already has a real name.');
       return;
     }
+
+    // Animated GIFs are rejected outright by the vision APIs ("Image is an
+    // animated GIF") — sending them just wastes a call that will always
+    // fail. Give them a simple, non-AI fallback name instead.
+    const gifItems = allGenericItems.filter((i) => i.mediaType === 'gif');
+    const itemsToRename = allGenericItems.filter((i) => i.mediaType !== 'gif');
+
     if (
       !confirm(
-        `Found ${itemsToRename.length} item(s) with generic/filename-style names (e.g. "rest.png", "logo1"). Use AI to rename all of them? This calls an AI vision API and permanently updates their names — it can take a while for large batches.`
+        `Found ${allGenericItems.length} item(s) with generic/filename-style names (e.g. "rest.png", "logo1")${
+          gifItems.length ? `, including ${gifItems.length} animated GIF(s) that will get a simple category-based name instead of an AI one` : ''
+        }. Use AI to rename${itemsToRename.length ? ' the rest' : ' them'}? This calls an AI vision API and permanently updates their names — it can take a while for large batches.`
       )
     ) {
       return;
@@ -480,7 +489,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       await new Promise((r) => setTimeout(r, 2000));
     }
 
-    const renamedItems = itemsToRename
+    const aiRenamedItems = itemsToRename
       .filter((it) => updatedNames[it.id])
       .map((it) => {
         const newName = updatedNames[it.id];
@@ -492,15 +501,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         };
       });
 
+    // Animated GIFs skipped the AI call entirely — give each a short,
+    // still-searchable name built from its category instead of leaving
+    // the old generic filename in place.
+    const gifRenamedItems = gifItems.map((it) => {
+      const newName = `${it.category} Animation`;
+      return {
+        ...it,
+        name: newName,
+        keywords: Array.from(new Set([...(it.keywords || []), it.category.toLowerCase(), 'animation'])),
+      };
+    });
+
+    const renamedItems = [...aiRenamedItems, ...gifRenamedItems];
+
     if (renamedItems.length > 0) {
       await onBulkAddItems(renamedItems);
     }
 
     setIsRenamingWithAI(false);
     setBulkActionMessage(
-      `Renamed ${renamedItems.length} of ${itemsToRename.length} item(s) with AI.${
-        errors.length ? ` ${errors.length} failed — ${errors.join('; ')}` : ''
-      }`
+      `Renamed ${renamedItems.length} of ${allGenericItems.length} item(s)${
+        gifRenamedItems.length ? ` (${gifRenamedItems.length} GIF${gifRenamedItems.length === 1 ? '' : 's'} given a simple category name)` : ''
+      }.${errors.length ? ` ${errors.length} failed — ${errors.join('; ')}` : ''}`
     );
   };
 
