@@ -53,7 +53,7 @@ function cleanName(raw) {
   
   return text
     .trim()
-    .replace(/^["'""]+|["'""]+$/g, '')
+    .replace(/^["'“”]+|["'“”]+$/g, '')
     .replace(/[.!]+$/g, '')
     .replace(/\s+/g, ' ')
     .slice(0, 90);
@@ -77,7 +77,10 @@ async function callGroqVision(imageUrl, timeoutMs = 15000) {
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          // llama-4-scout-17b was deprecated/shut down by Groq on
+          // 2026-07-17; llama-4-maverick is its recommended vision-capable
+          // replacement.
+          model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
           messages: buildVisionMessages(imageUrl),
           temperature: 0.4,
           max_tokens: 60,
