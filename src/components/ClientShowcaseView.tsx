@@ -667,16 +667,39 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
       className="break-inside-avoid group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300"
     >
       {/* Image Wrap — pure image tile, no text, reference-gallery style */}
-      <div className="relative bg-black/20 overflow-hidden rounded-2xl">
-        <img
-          src={item.thumb || item.thumb_large || ''}
-          alt={item.name}
-          loading="lazy"
-          onLoad={() => setImageLoaded(true)}
-          className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover:scale-[1.04] ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-        />
+      <div className="relative bg-black/20 overflow-hidden rounded-2xl group/image">
+        {/* For videos, show thumbnail with play button overlay */}
+        {item.mediaType === 'video' ? (
+          <>
+            <img
+              src={item.thumb || item.thumb_large || ''}
+              alt={item.name}
+              loading="lazy"
+              onLoad={() => setImageLoaded(true)}
+              className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover/image:scale-[1.04] ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            {/* Play button overlay for videos */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/image:bg-black/30 transition-colors">
+              <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-xl group-hover/image:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+          </>
+        ) : (
+          <img
+            src={item.thumb || item.thumb_large || ''}
+            alt={item.name}
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover:scale-[1.04] ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
 
         {/* Video badge */}
         {item.mediaType === 'video' && (
