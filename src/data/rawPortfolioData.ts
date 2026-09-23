@@ -35,7 +35,10 @@ export function extractDriveFileId(driveLink: string | null | undefined): string
 
 export function detectMediaType(filename: string | null, driveUrl: string | null): 'image' | 'video' | 'gif' | 'pdf' | 'webp' {
   const str = ((filename || '') + ' ' + (driveUrl || '')).toLowerCase();
+  // Check for explicit video file extensions
   if (str.includes('.mp4') || str.includes('.webm') || str.includes('.mov') || str.includes('video/')) return 'video';
+  // Check for video-related keywords in the filename (for items that are videos but don't have extensions in URL)
+  if (str.includes('video') || str.includes('footage') || str.includes('reel') || str.includes('animation') || str.includes('motion')) return 'video';
   if (str.includes('.gif') || str.includes('image/gif')) return 'gif';
   if (str.includes('.pdf') || str.includes('application/pdf')) return 'pdf';
   if (str.includes('.webp') || str.includes('image/webp')) return 'webp';
@@ -50,7 +53,10 @@ export function getDriveVideoEmbed(driveUrl: string | null): string | null {
   if (!driveUrl) return null;
   const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
-    return `https://drive.google.com/file/d/${match[1]}/preview`;
+    const fileId = match[1];
+    // Use /preview for Google Drive video streaming via iframe
+    // This works for any file size and is the recommended way to embed Google Drive files
+    return `https://drive.google.com/file/d/${fileId}/preview`;
   }
   return driveUrl;
 }

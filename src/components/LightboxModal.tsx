@@ -186,8 +186,9 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
             {item.mediaType === 'video' ? (
               <iframe
                 src={getDriveVideoEmbed(item.drive_link) || ''}
-                allow="autoplay; encrypted-media"
+                allow="autoplay; encrypted-media; fullscreen"
                 allowFullScreen
+                sandbox="allow-same-origin allow-scripts allow-presentation allow-popups"
                 className="w-full aspect-video max-h-[68vh] rounded-2xl shadow-2xl border-0"
                 title={item.name}
               />
