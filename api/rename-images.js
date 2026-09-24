@@ -216,19 +216,25 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Send at most 12 items per request; the client should batch.' });
     }
 
-    const results = await Promise.all(
-      items.map(async (item) => {
-        if (!item.imageUrl) {
-          return { id: item.id, error: 'No image URL for this item.' };
-        }
-        try {
-          const { name, provider } = await nameOneImage(item.imageUrl);
-          return { id: item.id, name, provider };
-        } catch (err) {
-          return { id: item.id, error: err.message || 'Naming failed.' };
-        }
-      })
-    );
+    // Processed SEQUENTIALLY (not Promise.all) — firing all items in a
+    // batch at the exact same instant was bursting past Groq's per-minute
+    // token rate limit (each image costs ~2180 input tokens against a
+    // 7000/min budget on the free tier), causing cascading 429s. One at a
+    // time, each request naturally waits for the previous one's network
+    // round-trip, which is enough spacing to stay under the limit.
+    const results = [];
+    for (const item of items) {
+      if (!item.imageUrl) {
+        results.push({ id: item.id, error: 'No image URL for this item.' });
+        continue;
+      }
+      try {
+        const { name, provider } = await nameOneImage(item.imageUrl);
+        results.push({ id: item.id, name, provider });
+      } catch (err) {
+        results.push({ id: item.id, error: err.message || 'Naming failed.' });
+      }
+    }
 
     return res.status(200).json({ results });
   } catch (err) {
