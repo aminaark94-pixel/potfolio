@@ -77,18 +77,20 @@ async function callGroqVision(imageUrl, timeoutMs = 15000) {
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          // llama-4-scout-17b was deprecated/shut down by Groq on
-          // 2026-07-17; llama-4-maverick is its recommended vision-capable
-          // replacement.
-          model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+          // llama-4-scout and llama-4-maverick were both unavailable on
+          // this account (model_not_found) — qwen/qwen3.8-27b confirmed
+          // working (vision-capable, per Groq's own docs).
+          model: 'qwen/qwen3.8-27b',
           messages: buildVisionMessages(imageUrl),
           temperature: 0.4,
           max_tokens: 60,
-          // Qwen3.6 is a reasoning model and thinks by default — this is a
-          // simple naming task, not something that needs a reasoning trace,
-          // and the trace was leaking into the output. "none" fully
-          // disables it for the qwen3 family (confirmed supported).
-                }),
+          // Qwen3.8 is a reasoning model and "thinks" by default, which can
+          // leak a <think>...</think> block into the output for a simple
+          // naming task like this. "none" disables it (confirmed supported
+          // by Groq for the qwen3 family) — cleanName() below still strips
+          // any trace defensively in case a stray one gets through anyway.
+          reasoning_effort: 'none',
+        }),
         signal: controller.signal,
       });
 
