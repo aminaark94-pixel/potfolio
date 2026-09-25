@@ -35,13 +35,25 @@ export function extractDriveFileId(driveLink: string | null | undefined): string
 
 export function detectMediaType(filename: string | null, driveUrl: string | null): 'image' | 'video' | 'gif' | 'pdf' | 'webp' {
   const str = ((filename || '') + ' ' + (driveUrl || '')).toLowerCase();
+  
   // Check for explicit video file extensions
-  if (str.includes('.mp4') || str.includes('.webm') || str.includes('.mov') || str.includes('video/')) return 'video';
-  // Check for video-related keywords in the filename (for items that are videos but don't have extensions in URL)
-  if (str.includes('video') || str.includes('footage') || str.includes('reel') || str.includes('animation') || str.includes('motion')) return 'video';
+  if (str.includes('.mp4') || str.includes('.webm') || str.includes('.mov') || str.includes('.avi') || str.includes('.mkv')) return 'video';
+  
+  // Check for video-related keywords in the filename
+  if (str.includes('video') || str.includes('footage') || str.includes('reel') || str.includes('animation') || str.includes('motion') || str.includes('ugc')) return 'video';
+  
+  // Check Google Drive file info - if it's a Google Drive link with video-like file size in URL or markers
+  if (str.includes('drive.google.com/file') && (str.includes('.mp4') || str.includes('video'))) return 'video';
+  
+  // Check for GIF
   if (str.includes('.gif') || str.includes('image/gif')) return 'gif';
+  
+  // Check for PDF
   if (str.includes('.pdf') || str.includes('application/pdf')) return 'pdf';
+  
+  // Check for WebP
   if (str.includes('.webp') || str.includes('image/webp')) return 'webp';
+  
   return 'image';
 }
 
