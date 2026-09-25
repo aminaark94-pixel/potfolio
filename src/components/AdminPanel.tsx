@@ -449,7 +449,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             body: JSON.stringify({
               items: batch.map((it) => ({
                 id: it.id,
-                imageUrl: it.thumb_large || it.thumb || it.thumb_small,
+                imageUrl: it.drive_link || it.thumb_large || it.thumb || it.thumb_small,
               })),
             }),
           });
