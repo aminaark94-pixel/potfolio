@@ -669,7 +669,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
       {/* Image Wrap — pure image tile, no text, reference-gallery style */}
       <div className="relative bg-black/20 overflow-hidden rounded-2xl group/image">
         {/* For videos, show thumbnail with play button overlay */}
-        {item.mediaType === 'video' ? (
+        {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) ? (
           <>
             <img
               src={item.thumb || item.thumb_large || ''}
@@ -702,7 +702,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
         )}
 
         {/* Video badge */}
-        {item.mediaType === 'video' && (
+        {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) && (
           <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md glass-chip text-[10px] font-space-mono text-cyan-300 uppercase z-10">
             Video
           </span>
@@ -712,7 +712,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Centered expand icon on hover - ONLY for images, not videos */}
-        {item.mediaType !== 'video' && (
+        {item.mediaType !== 'video' && !(item.name && item.name.toLowerCase().includes('video')) && (
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
             <div className="w-11 h-11 rounded-full glass-chip flex items-center justify-center text-white shadow-lg">
               <Maximize2 className="w-4 h-4" />
