@@ -183,7 +183,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
         >
           {/* Main Media Viewer */}
           <div className="relative w-full flex items-center justify-center overflow-auto max-h-[72vh] rounded-3xl bg-slate-950/80 border border-white/15 p-2 sm:p-4 shadow-2xl">
-            {item.mediaType === 'video' ? (
+            {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) ? (
               <div className="w-full flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl p-8 min-h-[68vh]">
                 {/* Video Icon */}
                 <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center">
