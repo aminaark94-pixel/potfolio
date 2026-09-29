@@ -581,9 +581,9 @@ function escapeHtml(text: string | null | undefined): string {
     .replace(/'/g, '&#039;');
 }
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────
 // Cover Letter Generator: Profile + Style storage (Firestore-backed)
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 
 const PROFILE_DOC_ID = 'profile';
 
@@ -624,12 +624,12 @@ export async function deleteCoverLetterStyleFromCloud(id: string): Promise<void>
   await deleteDoc(doc(db, 'coverLetterStyles', id));
 }
 
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 // Portfolio Templates: curated, hand-picked item sets per client
 // vertical (e.g. "Therapy Clinic", "School", "Daycare"), tagged
 // for fast/deterministic matching — used both for quick showcase
 // creation and as a first-pass lookup before AI matching.
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 
 export async function loadPortfolioTemplatesFromCloud(): Promise<PortfolioTemplate[]> {
   try {
@@ -670,14 +670,14 @@ export async function bulkUpdateCustomItemsCategory(
   await batch.commit();
 }
 
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 // Hidden catalog items: hide (not delete) duplicates/junk from every
 // browse/search view. Works for BOTH base (static) and custom (Firestore)
 // items uniformly via a single settings doc — a base catalog item has no
 // per-item Firestore doc to flag, so this is the only approach that covers
 // both. Never removes anything, so any showcase already linking to a
 // hidden item (e.g. sent to a client) keeps working exactly as before.
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────
 const HIDDEN_ITEMS_DOC_ID = 'hiddenItemIds';
 
 export async function loadHiddenItemIds(): Promise<Set<string>> {
@@ -694,4 +694,35 @@ export async function loadHiddenItemIds(): Promise<Set<string>> {
 
 export async function saveHiddenItemIds(ids: Set<string>): Promise<void> {
   await setDoc(doc(db, 'settings', HIDDEN_ITEMS_DOC_ID), { ids: Array.from(ids) });
+}
+
+// ───────────────────────────────────────────────────────
+// Manual "this is actually a video" overrides. mediaType is only ever
+// guessed once, at import time, from the filename/drive link — if a video
+// file has a generic name (no "video"/"footage"/etc keyword and no visible
+// .mp4 in its Drive share link), it gets misclassified as an image and the
+// client-facing play-button overlay never shows. Rather than re-run
+// detection or touch the stored mediaType (which could affect filters
+// elsewhere), this keeps a separate list of item ids the admin has manually
+// flagged as videos — same safe, non-destructive settings-doc pattern as
+// hiddenItemIds above. Never removes or edits anything, so any showcase
+// already linking to the item (e.g. sent to a client) keeps working exactly
+// as before.
+// ───────────────────────────────────────────────────────
+const VIDEO_OVERRIDE_DOC_ID = 'videoOverrideItemIds';
+
+export async function loadVideoOverrideIds(): Promise<Set<string>> {
+  try {
+    const snap = await getDoc(doc(db, 'settings', VIDEO_OVERRIDE_DOC_ID));
+    if (snap.exists() && Array.isArray(snap.data().ids)) {
+      return new Set(snap.data().ids as string[]);
+    }
+  } catch (e) {
+    console.error('Failed to load video override ids from Firestore', e);
+  }
+  return new Set();
+}
+
+export async function saveVideoOverrideIds(ids: Set<string>): Promise<void> {
+  await setDoc(doc(db, 'settings', VIDEO_OVERRIDE_DOC_ID), { ids: Array.from(ids) });
 }
