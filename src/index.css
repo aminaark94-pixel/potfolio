@@ -209,3 +209,44 @@
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/* Admin "Currently Editing Showcase" bar                                  */
+/* A long client name (e.g. a showcase whose title contains a full note)   */
+/* used to stretch the <select> across the whole panel, squeezing the      */
+/* action buttons into a narrow column. Cap the picker and let the name    */
+/* truncate with an ellipsis instead.                                      */
+/* ---------------------------------------------------------------------- */
+
+div.space-y-1:has(> div > select.text-lg.font-bold) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+div:has(> select.text-lg.font-bold) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+select.text-lg.font-bold {
+  width: 100%;
+  max-width: 420px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+select.text-lg.font-bold + span {
+  flex-shrink: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  /* Picker column takes what it needs; buttons keep their natural width */
+  div.space-y-1:has(> div > select.text-lg.font-bold) {
+    flex: 0 1 560px;
+  }
+}
