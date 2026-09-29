@@ -28,7 +28,9 @@ import {
   GripVertical,
   Filter,
   Copy,
-  GitMerge
+  GitMerge,
+  Film,
+  Play
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -72,6 +74,7 @@ interface AdminPanelProps {
   onBulkAddItems: (items: PortfolioItem[]) => Promise<void>;
   onDeleteCustomItem: (itemId: string) => Promise<void>;
   onSetItemHidden: (itemId: string, hidden: boolean) => Promise<void>;
+  onSetItemVideoOverride: (itemId: string, isVideo: boolean) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -89,6 +92,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onBulkAddItems,
   onDeleteCustomItem,
   onSetItemHidden,
+  onSetItemVideoOverride,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -2084,6 +2088,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
 
+                  {/* Play-button overlay on videos — same cue the client view
+                      shows, so you can see at a glance which items are
+                      flagged as video. */}
+                  {item.mediaType === 'video' && (
+                    <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
+                        <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                      </span>
+                    </span>
+                  )}
+
                   {/* Format tag */}
                   <span className="absolute top-2.5 left-9 px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-md text-[10px] font-mono text-white border border-white/10">
                     {item.category}
@@ -2154,6 +2169,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       title="Preview full asset"
                     >
                       <Eye className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Mark / unmark as video — same control as the
+                        "All 1,300+ Works" archive. Flagged items get the
+                        play button in the client view. */}
+                    <button
+                      onClick={() => onSetItemVideoOverride(item.id, item.mediaType !== 'video')}
+                      className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                        item.mediaType === 'video'
+                          ? 'bg-cyan-50 text-cyan-600 border-cyan-300'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border-slate-200'
+                      }`}
+                      title={
+                        item.mediaType === 'video'
+                          ? 'Marked as video — click to unmark'
+                          : 'Not a video — click to mark as video (shows play button in client view)'
+                      }
+                    >
+                      <Film className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
