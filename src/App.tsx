@@ -20,6 +20,8 @@ import {
   getAllPortfolioItems,
   loadHiddenItemIds,
   saveHiddenItemIds,
+  loadVideoOverrideIds,
+  saveVideoOverrideIds,
 } from './utils/storage';
 
 export default function App() {
@@ -34,6 +36,7 @@ export default function App() {
   );
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
   const [hiddenItemIds, setHiddenItemIds] = useState<Set<string>>(new Set());
+  const [videoOverrideIds, setVideoOverrideIds] = useState<Set<string>>(new Set());
   const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [notFoundSlug, setNotFoundSlug] = useState<string | null>(null);
@@ -64,15 +67,23 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [loadedShowcases, customItems, hiddenIds] = await Promise.all([
+        const [loadedShowcases, customItems, hiddenIds, videoOverrides] = await Promise.all([
           loadShowcasesFromCloud(),
           loadCustomItemsFromCloud(),
           loadHiddenItemIds(),
+          loadVideoOverrideIds(),
         ]);
         setShowcases(loadedShowcases);
         saveStoredCustomItems(customItems);
         setHiddenItemIds(hiddenIds);
-        setAllItems(getAllPortfolioItems().map((it) => ({ ...it, hidden: hiddenIds.has(it.id) })));
+        setVideoOverrideIds(videoOverrides);
+        setAllItems(
+          getAllPortfolioItems().map((it) => ({
+            ...it,
+            hidden: hiddenIds.has(it.id),
+            mediaType: videoOverrides.has(it.id) ? 'video' : it.mediaType,
+          }))
+        );
 
         // Check URL hash for direct client showcase link (e.g. #showcase=new-client-f0c7)
         const hash = window.location.hash;
@@ -191,6 +202,24 @@ export default function App() {
     setAllItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, hidden } : it)));
   };
 
+  // Manually flag/unflag an item as a video — fixes items whose auto-detected
+  // mediaType was wrong at import time (generic filename, no recognizable
+  // extension in the Drive link) so the play-button overlay shows correctly
+  // in the client view. Never touches the underlying stored item or any
+  // showcase — same non-destructive settings-doc approach as hidden items.
+  const handleSetItemVideoOverride = async (itemId: string, isVideo: boolean) => {
+    setVideoOverrideIds((prev) => {
+      const next = new Set<string>(prev);
+      if (isVideo) next.add(itemId);
+      else next.delete(itemId);
+      saveVideoOverrideIds(next).catch(() => {});
+      return next;
+    });
+    setAllItems((prev) =>
+      prev.map((it) => (it.id === itemId ? { ...it, mediaType: isVideo ? 'video' : 'image' } : it))
+    );
+  };
+
   const handleDeleteCustomItem = async (itemId: string) => {
     await deleteCustomItemFromCloud(itemId);
 
@@ -277,6 +306,7 @@ export default function App() {
             activeSlug={activeSlug}
             allItems={allItems}
             onSetItemHidden={handleSetItemHidden}
+            onSetItemVideoOverride={handleSetItemVideoOverride}
             onSelectShowcase={setActiveSlug}
             onUpdateShowcase={handleUpdateShowcase}
             onCreateShowcase={handleCreateShowcase}
@@ -308,6 +338,7 @@ export default function App() {
             onUpdateShowcase={handleUpdateShowcase}
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
+            onSetItemVideoOverride={handleSetItemVideoOverride}
           />
         )}
       </div>

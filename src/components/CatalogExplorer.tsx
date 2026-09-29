@@ -11,7 +11,8 @@ import {
   Folder,
   Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Film
 } from 'lucide-react';
 import { PortfolioItem, Showcase } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -23,6 +24,7 @@ interface CatalogExplorerProps {
   onUpdateShowcase: (updated: Showcase) => void;
   onOpenLightbox: (item: PortfolioItem) => void;
   onOpenCustomItemModal: () => void;
+  onSetItemVideoOverride: (itemId: string, isVideo: boolean) => void;
 }
 
 export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
@@ -32,6 +34,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
   onUpdateShowcase,
   onOpenLightbox,
   onOpenCustomItemModal,
+  onSetItemVideoOverride,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -329,6 +332,22 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
                     title="Preview full asset"
                   >
                     <Eye className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    onClick={() => onSetItemVideoOverride(item.id, item.mediaType !== 'video')}
+                    className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                      item.mediaType === 'video'
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                        : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border-white/10'
+                    }`}
+                    title={
+                      item.mediaType === 'video'
+                        ? 'Marked as video — click to unmark'
+                        : 'Not a video — click to mark as video (shows play button in client view)'
+                    }
+                  >
+                    <Film className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
