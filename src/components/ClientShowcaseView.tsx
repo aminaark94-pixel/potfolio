@@ -28,6 +28,26 @@ import founderPhoto from '../assets/founder-photo.png';
 
 const AALA_LOGO_URL = 'https://aalastudio.com/wp-content/uploads/2025/03/Group-1.png';
 
+/**
+ * Universal video detection - works for ALL videos across ALL showcases
+ * Checks both mediaType and name keywords to catch every video
+ * Future videos will automatically be detected!
+ */
+const isVideoItem = (item: PortfolioItem): boolean => {
+  if (!item) return false;
+  // Check mediaType first (most reliable)
+  if (item.mediaType === 'video') return true;
+  // Check name keywords (fallback for items without mediaType set)
+  if (item.name) {
+    const nameLower = item.name.toLowerCase();
+    return nameLower.includes('video') || 
+           nameLower.includes('footage') ||
+           nameLower.includes('reel') ||
+           nameLower.includes('ugc');
+  }
+  return false;
+};
+
 interface ClientShowcaseViewProps {
   showcase: Showcase;
   allItems: PortfolioItem[];
@@ -405,6 +425,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                       backgroundClip: 'text',
                       color: 'transparent',
                     }}
+                    className="break-words max-w-full inline-block"
                   >
                     {showcase.heading}
                   </span>
@@ -669,7 +690,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
       {/* Image Wrap — pure image tile, no text, reference-gallery style */}
       <div className="relative bg-black/20 overflow-hidden rounded-2xl group/image">
         {/* For videos, show thumbnail with play button overlay */}
-        {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) ? (
+        {isVideoItem(item) ? (
           <>
             <img
               src={item.thumb || item.thumb_large || ''}
@@ -702,7 +723,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
         )}
 
         {/* Video badge */}
-        {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) && (
+        {isVideoItem(item) && (
           <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md glass-chip text-[10px] font-space-mono text-cyan-300 uppercase z-10">
             Video
           </span>
@@ -712,7 +733,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Centered expand icon on hover - ONLY for images, not videos */}
-        {item.mediaType !== 'video' && !(item.name && item.name.toLowerCase().includes('video')) && (
+        {!isVideoItem(item) && (
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
             <div className="w-11 h-11 rounded-full glass-chip flex items-center justify-center text-white shadow-lg">
               <Maximize2 className="w-4 h-4" />

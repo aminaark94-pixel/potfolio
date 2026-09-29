@@ -16,6 +16,23 @@ import {
 import { PortfolioItem, ThemeConfig } from '../types/portfolio';
 import { getDriveVideoEmbed } from '../data/rawPortfolioData';
 
+/**
+ * Universal video detection - same as in ClientShowcaseView
+ * Ensures consistent video detection everywhere
+ */
+const isVideoItem = (item: PortfolioItem | null): boolean => {
+  if (!item) return false;
+  if (item.mediaType === 'video') return true;
+  if (item.name) {
+    const nameLower = item.name.toLowerCase();
+    return nameLower.includes('video') || 
+           nameLower.includes('footage') ||
+           nameLower.includes('reel') ||
+           nameLower.includes('ugc');
+  }
+  return false;
+};
+
 interface LightboxModalProps {
   item: PortfolioItem | null;
   items: PortfolioItem[];
@@ -183,7 +200,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
         >
           {/* Main Media Viewer */}
           <div className="relative w-full flex items-center justify-center overflow-auto max-h-[72vh] rounded-3xl bg-slate-950/80 border border-white/15 p-2 sm:p-4 shadow-2xl">
-            {(item.mediaType === 'video' || (item.name && item.name.toLowerCase().includes('video'))) ? (
+            {isVideoItem(item) ? (
               <div className="w-full flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl p-8 min-h-[68vh]">
                 {/* Video Icon */}
                 <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center">
