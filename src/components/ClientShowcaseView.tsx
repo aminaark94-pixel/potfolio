@@ -711,12 +711,14 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
         {/* Subtle professional hover tint */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Centered expand icon on hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
-          <div className="w-11 h-11 rounded-full glass-chip flex items-center justify-center text-white shadow-lg">
-            <Maximize2 className="w-4 h-4" />
+        {/* Centered expand icon on hover - ONLY for images, not videos */}
+        {item.mediaType !== 'video' && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
+            <div className="w-11 h-11 rounded-full glass-chip flex items-center justify-center text-white shadow-lg">
+              <Maximize2 className="w-4 h-4" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Heart Like Floating Button */}
         <button
