@@ -30,21 +30,39 @@ const AALA_LOGO_URL = 'https://aalastudio.com/wp-content/uploads/2025/03/Group-1
 
 /**
  * Universal video detection - works for ALL videos across ALL showcases
- * Checks both mediaType and name keywords to catch every video
+ * Checks multiple sources: mediaType, name keywords, and drive_link
  * Future videos will automatically be detected!
  */
 const isVideoItem = (item: PortfolioItem): boolean => {
   if (!item) return false;
+  
   // Check mediaType first (most reliable)
   if (item.mediaType === 'video') return true;
-  // Check name keywords (fallback for items without mediaType set)
+  
+  // Check name keywords (fallback)
   if (item.name) {
     const nameLower = item.name.toLowerCase();
-    return nameLower.includes('video') || 
-           nameLower.includes('footage') ||
-           nameLower.includes('reel') ||
-           nameLower.includes('ugc');
+    if (nameLower.includes('video') || 
+        nameLower.includes('footage') ||
+        nameLower.includes('reel') ||
+        nameLower.includes('ugc') ||
+        nameLower.includes('animation') ||
+        nameLower.includes('motion')) {
+      return true;
+    }
   }
+  
+  // Check if drive_link contains video file indicators
+  if (item.drive_link) {
+    const linkLower = item.drive_link.toLowerCase();
+    if (linkLower.includes('.mp4') || 
+        linkLower.includes('.webm') ||
+        linkLower.includes('.mov') ||
+        linkLower.includes('.avi')) {
+      return true;
+    }
+  }
+  
   return false;
 };
 
@@ -241,8 +259,9 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             <h2 className="font-syne font-extrabold text-2xl glass-text-primary">
               Private Client Showcase
             </h2>
-            <p className="text-xs font-space-mono glass-text-muted">
-              Prepared by {showcase.brand_name} for {showcase.heading}
+            <p className="text-xs font-space-mono glass-text-muted truncate">
+              Prepared by {showcase.brand_name} for{' '}
+              <span className="font-semibold break-words">{showcase.heading}</span>
             </p>
           </div>
 

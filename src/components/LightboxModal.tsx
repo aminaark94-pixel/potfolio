@@ -22,14 +22,31 @@ import { getDriveVideoEmbed } from '../data/rawPortfolioData';
  */
 const isVideoItem = (item: PortfolioItem | null): boolean => {
   if (!item) return false;
+  
   if (item.mediaType === 'video') return true;
+  
   if (item.name) {
     const nameLower = item.name.toLowerCase();
-    return nameLower.includes('video') || 
-           nameLower.includes('footage') ||
-           nameLower.includes('reel') ||
-           nameLower.includes('ugc');
+    if (nameLower.includes('video') || 
+        nameLower.includes('footage') ||
+        nameLower.includes('reel') ||
+        nameLower.includes('ugc') ||
+        nameLower.includes('animation') ||
+        nameLower.includes('motion')) {
+      return true;
+    }
   }
+  
+  if (item.drive_link) {
+    const linkLower = item.drive_link.toLowerCase();
+    if (linkLower.includes('.mp4') || 
+        linkLower.includes('.webm') ||
+        linkLower.includes('.mov') ||
+        linkLower.includes('.avi')) {
+      return true;
+    }
+  }
+  
   return false;
 };
 
