@@ -26,7 +26,8 @@ import { generateStandaloneHTML } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import founderPhoto from '../assets/founder-photo.png';
 
-const AALA_LOGO_URL = 'https://aalastudio.com/wp-content/uploads/2025/03/Group-1.png';
+// Fallback brand name shown wherever the studio hasn't set a custom one.
+const DEFAULT_BRAND_NAME = "Abdullah's Portfolio";
 
 /**
  * Universal video detection - works for ALL videos across ALL showcases
@@ -260,7 +261,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
               Private Client Showcase
             </h2>
             <p className="text-xs font-space-mono glass-text-muted truncate">
-              Prepared by {showcase.brand_name} for{' '}
+              Prepared by {showcase.brand_name || DEFAULT_BRAND_NAME} for{' '}
               <span className="font-semibold break-words">{showcase.heading}</span>
             </p>
           </div>
@@ -305,7 +306,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
 
   return (
     <div className="aurora-canvas min-h-screen glass-text-primary selection:bg-white/20 selection:text-white transition-colors duration-500">
-      {/* Ambient monochrome glow — matches Aala Studio's minimal dark palette */}
+      {/* Ambient monochrome glow — minimal dark palette */}
       <div className="aurora-blob w-[520px] h-[520px] -top-40 -left-32 opacity-[0.07] animate-blob-slow bg-white" />
       <div className="aurora-blob w-[440px] h-[440px] top-32 -right-24 opacity-[0.05] animate-blob bg-white" />
       <div
@@ -332,22 +333,20 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                 <span>Studio Hub</span>
               </button>
             )}
-            {showcase.logo_url ? (
+            {showcase.showLogo !== false && showcase.logo_url ? (
               <img
                 src={showcase.logo_url}
-                alt="Logo"
+                alt={showcase.brand_name || DEFAULT_BRAND_NAME}
                 className="h-9 w-auto rounded-lg object-contain bg-white p-1"
               />
-            ) : (
-              <img
-                src={AALA_LOGO_URL}
-                alt="Aala Studio"
-                className="h-9 w-auto rounded-lg object-contain bg-white p-1.5"
-              />
-            )}
+            ) : showcase.showLogo !== false ? (
+              <span className="font-space-grotesk font-bold text-sm sm:text-base tracking-tight glass-text-primary whitespace-nowrap">
+                {showcase.brand_name || DEFAULT_BRAND_NAME}
+              </span>
+            ) : null}
             <img
               src={founderPhoto}
-              alt="Aala Studio"
+              alt={showcase.brand_name || DEFAULT_BRAND_NAME}
               className="hidden sm:block w-9 h-9 rounded-full object-cover glass-hairline shrink-0"
             />
           </div>
@@ -413,7 +412,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
             <div className="flex items-center gap-4">
               <img
                 src={founderPhoto}
-                alt="Aala Studio"
+                alt={showcase.brand_name || DEFAULT_BRAND_NAME}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-xl border-2 glass-hairline shrink-0"
                 style={{ borderColor: theme.accentSoft }}
               />
@@ -604,7 +603,7 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
       {/* Footer */}
       <footer className="relative z-10 glass-hairline border-l-0 border-r-0 border-b-0 py-10 px-4 text-center space-y-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-xs font-space-mono glass-text-muted">
-          <span>© {new Date().getFullYear()} {showcase.brand_name || 'Aala Studio'}</span>
+          <span>© {new Date().getFullYear()} {showcase.brand_name || DEFAULT_BRAND_NAME}</span>
           <span className="hidden sm:inline">•</span>
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
