@@ -62,7 +62,7 @@ export const PortfolioTemplatesLibrary: React.FC<PortfolioTemplatesLibraryProps>
     const newShowcase: Showcase = {
       id: `showcase-${Date.now()}-${randomSuffix}`,
       slug,
-      brand_name: heading || 'Aala Studio',
+      brand_name: heading || "Abdullah's Portfolio",
       heading: heading || t.name,
       tagline: `Curated case studies tailored for ${heading || t.name}`,
       logo_url: '',
