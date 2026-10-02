@@ -333,17 +333,13 @@ export const ClientShowcaseView: React.FC<ClientShowcaseViewProps> = ({
                 <span>Studio Hub</span>
               </button>
             )}
-            {showcase.showLogo !== false && showcase.logo_url ? (
-              <img
-                src={showcase.logo_url}
-                alt={showcase.brand_name || DEFAULT_BRAND_NAME}
-                className="h-9 w-auto rounded-lg object-contain bg-white p-1"
-              />
-            ) : showcase.showLogo !== false ? (
-              <span className="font-space-grotesk font-bold text-sm sm:text-base tracking-tight glass-text-primary whitespace-nowrap">
-                {showcase.brand_name || DEFAULT_BRAND_NAME}
-              </span>
-            ) : null}
+            {/* Header brand mark — always plain text, never a logo image.
+                Shows a fixed studio name rather than the per-showcase
+                brand_name/logo_url fields, so every client page carries
+                the same identity regardless of what a showcase has set. */}
+            <span className="font-space-grotesk font-bold text-sm sm:text-base tracking-tight glass-text-primary whitespace-nowrap">
+              {DEFAULT_BRAND_NAME}
+            </span>
             <img
               src={founderPhoto}
               alt={showcase.brand_name || DEFAULT_BRAND_NAME}
