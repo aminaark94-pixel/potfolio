@@ -2039,40 +2039,99 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Pagination & Count Header */}
-        <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-          <div className="flex items-center gap-3">
-            <span>
-              Showing {paginatedItems.length} of {filteredCatalog.length} matching works (Page {currentPage} of {totalPages})
+        {/* Pagination & Granular Selection Controls Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono text-slate-500 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-semibold text-slate-600">
+              Showing {paginatedItems.length} of {filteredCatalog.length} works (Page {currentPage} of {totalPages})
             </span>
+
+            <span className="text-slate-300 hidden sm:inline">|</span>
+
+            {/* Granular Option 1: Select All on This Page */}
             <button
+              type="button"
+              onClick={() => {
+                const pageIds = paginatedItems.map((i) => i.id);
+                const isPageAllSelected = pageIds.length > 0 && pageIds.every((id) => selectedItemIds.has(id));
+                setSelectedItemIds((prev) => {
+                  const next = new Set(prev);
+                  if (isPageAllSelected) {
+                    pageIds.forEach((id) => next.delete(id));
+                  } else {
+                    pageIds.forEach((id) => next.add(id));
+                  }
+                  return next;
+                });
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-space-grotesk font-bold text-xs border transition-all cursor-pointer ${
+                paginatedItems.length > 0 && paginatedItems.every((id) => selectedItemIds.has(id))
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'
+              }`}
+              title={`Select only the ${paginatedItems.length} items visible on page ${currentPage}`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>
+                {paginatedItems.length > 0 && paginatedItems.every((id) => selectedItemIds.has(id))
+                  ? `Deselect Page (${paginatedItems.length})`
+                  : `Select All on This Page (${paginatedItems.length})`}
+              </span>
+            </button>
+
+            {/* Granular Option 2: Select All [Total Filtered Items] */}
+            <button
+              type="button"
               onClick={() => {
                 const allFilteredIds = filteredCatalog.map((i) => i.id);
-                const allSelected = allFilteredIds.every((id) => selectedItemIds.has(id));
-                setSelectedItemIds(allSelected ? new Set() : new Set(allFilteredIds));
+                const isAllSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedItemIds.has(id));
+                setSelectedItemIds((prev) => {
+                  if (isAllSelected) return new Set();
+                  return new Set([...Array.from(prev), ...allFilteredIds]);
+                });
               }}
-              className="text-indigo-600 hover:text-indigo-800 font-space-grotesk font-bold cursor-pointer"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-space-grotesk font-bold text-xs border transition-all cursor-pointer ${
+                filteredCatalog.length > 0 && filteredCatalog.every((id) => selectedItemIds.has(id))
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-white hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 border-indigo-200'
+              }`}
+              title={`Select all ${filteredCatalog.length} items matching your filters across all pages`}
             >
-              {filteredCatalog.length > 0 && filteredCatalog.every((i) => selectedItemIds.has(i.id))
-                ? `Deselect all ${filteredCatalog.length}`
-                : `Select all ${filteredCatalog.length} (filtered)`}
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>
+                {filteredCatalog.length > 0 && filteredCatalog.every((id) => selectedItemIds.has(id))
+                  ? `Deselect All (${filteredCatalog.length})`
+                  : `Select All ${filteredCatalog.length} (All Pages)`}
+              </span>
             </button>
+
+            {selectedItemIds.size > 0 && (
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-space-grotesk font-semibold text-xs border border-rose-200 transition-colors cursor-pointer"
+                title="Clear all selected items"
+              >
+                <X className="w-3 h-3" />
+                <span>Clear ({selectedItemIds.size})</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <span>Per page:</span>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <span className="font-semibold text-slate-600">Per page:</span>
             <select
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="bg-white text-slate-800 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none"
+              className="bg-white text-slate-800 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-mono font-medium focus:outline-none focus:border-indigo-400 shadow-xs cursor-pointer"
             >
-              <option value={12}>12</option>
-              <option value={24}>24</option>
-              <option value={48}>48</option>
-              <option value={96}>96</option>
+              <option value={12}>12 per page</option>
+              <option value={24}>24 per page</option>
+              <option value={48}>48 per page</option>
+              <option value={96}>96 per page</option>
             </select>
           </div>
         </div>

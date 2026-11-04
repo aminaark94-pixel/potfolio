@@ -10,14 +10,15 @@ import {
   FileCode,
   ExternalLink,
   ChevronDown,
-  LogOut
+  LogOut,
+  ArrowLeftRight
 } from 'lucide-react';
 import { Showcase } from '../types/portfolio';
 import { THEMES } from '../data/themes';
 
 interface NavbarProps {
-  viewMode: 'admin' | 'client' | 'catalog';
-  onSelectViewMode: (mode: 'admin' | 'client' | 'catalog') => void;
+  viewMode: 'admin' | 'client' | 'catalog' | 'mover';
+  onSelectViewMode: (mode: 'admin' | 'client' | 'catalog' | 'mover') => void;
   showcases: Record<string, Showcase>;
   activeSlug: string;
   onSelectShowcase: (slug: string) => void;
@@ -79,6 +80,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>Studio Hub</span>
+            </button>
+
+            <button
+              onClick={() => onSelectViewMode('mover')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-space-grotesk font-semibold transition-all cursor-pointer ${
+                viewMode === 'mover'
+                  ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/80 font-bold'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Bulk Category Mover</span>
             </button>
 
             <button

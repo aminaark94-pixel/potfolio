@@ -4,6 +4,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { AdminLogin } from './components/AdminLogin';
 import { ClientShowcaseView } from './components/ClientShowcaseView';
 import { CatalogExplorer } from './components/CatalogExplorer';
+import { BulkCategoryMover } from './components/BulkCategoryMover';
 import { LightboxModal } from './components/LightboxModal';
 import { AddCustomItemModal } from './components/AddCustomItemModal';
 import { EditItemModal } from './components/EditItemModal';
@@ -33,7 +34,7 @@ export default function App() {
   // render, so the admin-only Navbar never flashes before switching to the
   // client view — the hash is known immediately, no need to wait for the
   // async data-loading effect below to set it.
-  const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog'>(() =>
+  const [viewMode, setViewMode] = useState<'admin' | 'client' | 'catalog' | 'mover'>(() =>
     typeof window !== 'undefined' && window.location.hash.includes('showcase=') ? 'client' : 'admin'
   );
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
@@ -372,6 +373,19 @@ export default function App() {
             onEditItem={(item) => setEditingItem(item)}
           />
         )}
+
+        {!isDataLoading && !notFoundSlug && viewMode === 'mover' && isAdminAuthed === true && (
+          <BulkCategoryMover
+            allItems={allItems}
+            onBulkUpdateItems={handleBulkAddItems}
+            onOpenLightbox={(item) => setSelectedLightboxItem(item)}
+            onEditItem={(item) => setEditingItem(item)}
+          />
+        )}
+
+        {!isDataLoading && !notFoundSlug && viewMode === 'mover' && isAdminAuthed === false && (
+          <AdminLogin onSuccess={() => setIsAdminAuthed(true)} />
+        )}
       </div>
 
       {/* Fullscreen Interactive Lightbox Modal */}
@@ -382,8 +396,8 @@ export default function App() {
         isOpen={!!selectedLightboxItem}
         onClose={() => setSelectedLightboxItem(null)}
         onSelect={(item) => setSelectedLightboxItem(item)}
-        isAdmin={isAdminAuthed === true && viewMode === 'admin'}
-        onEditItem={isAdminAuthed === true && viewMode === 'admin' ? (item) => setEditingItem(item) : undefined}
+        isAdmin={isAdminAuthed === true && viewMode !== 'client'}
+        onEditItem={isAdminAuthed === true && viewMode !== 'client' ? (item) => setEditingItem(item) : undefined}
         isLiked={
           selectedLightboxItem && currentShowcase?.feedback?.[selectedLightboxItem.id]?.liked
         }
