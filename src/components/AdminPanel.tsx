@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -408,7 +408,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleAIRenameGeneric = async () => {
     const allGenericItems = allItems.filter(
-      (i) => looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small)
+      (i) => looksGeneric(i.name) && (i.thumb || i.thumb_large || i.thumb_small || i.drive_link)
     );
     if (allGenericItems.length === 0) {
       setBulkActionMessage('No generically-named items found — everything already has a real name.');
@@ -453,7 +453,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             body: JSON.stringify({
               items: batch.map((it) => ({
                 id: it.id,
-                imageUrl: it.drive_link || it.thumb_large || it.thumb || it.thumb_small,
+                imageUrl: it.thumb_large || it.thumb || it.thumb_small || (it.drive_link ? getDriveThumb(it.drive_link, 800) : null) || it.drive_link,
               })),
             }),
           });
