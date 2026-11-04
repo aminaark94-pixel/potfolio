@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -61,6 +61,7 @@ interface LightboxModalProps {
   onToggleLike?: (itemId: string) => void;
   isLiked?: boolean;
   onEditItem?: (item: PortfolioItem) => void;
+  isAdmin?: boolean;
 }
 
 export const LightboxModal: React.FC<LightboxModalProps> = ({
@@ -73,6 +74,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   onToggleLike,
   isLiked = false,
   onEditItem,
+  isAdmin = false,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [copied, setCopied] = useState(false);
@@ -278,7 +280,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                   {item.category}
                 </span>
 
-                {item.labels && item.labels.map((lbl) => (
+                {isAdmin && item.labels && item.labels.map((lbl) => (
                   <span
                     key={lbl}
                     className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200"
@@ -287,7 +289,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                   </span>
                 ))}
 
-                {(!item.labels || item.labels.length === 0) && item.keywords && item.keywords.slice(0, 3).map((kw, idx) => (
+                {isAdmin && (!item.labels || item.labels.length === 0) && item.keywords && item.keywords.slice(0, 3).map((kw, idx) => (
                   <span
                     key={idx}
                     className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200"
@@ -300,8 +302,9 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
-              {onEditItem && (
+              {isAdmin && onEditItem && (
                 <button
+                  type="button"
                   onClick={() => onEditItem(item)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-xs font-space-grotesk font-bold text-indigo-700 transition-all cursor-pointer"
                   title="Rename, change category, or add labels"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminLogin } from './components/AdminLogin';
@@ -17,6 +17,7 @@ import {
   saveCustomItemToCloud,
   saveCustomItemsToCloud,
   deleteCustomItemFromCloud,
+  loadStoredCustomItems,
   saveStoredCustomItems,
   getAllPortfolioItems,
   loadHiddenItemIds,
@@ -177,12 +178,20 @@ export default function App() {
   // database, reappearing as "new" on the next sync from another device.
   const handleBulkAddItems = async (newItems: PortfolioItem[]) => {
     if (newItems.length === 0) return;
-    await saveCustomItemsToCloud(newItems);
+    const itemsWithCustom = newItems.map((i) => ({ ...i, custom: true, id: String(i.id) }));
+    await saveCustomItemsToCloud(itemsWithCustom);
 
-    const updatedCatalog = getAllPortfolioItems();
-    const nextCustom = [...newItems, ...updatedCatalog.filter((i) => i.custom)];
+    const newIds = new Set(itemsWithCustom.map((i) => String(i.id)));
+    const currentCustom = loadStoredCustomItems().filter((i) => !newIds.has(String(i.id)));
+    const nextCustom = [...itemsWithCustom, ...currentCustom];
     saveStoredCustomItems(nextCustom);
-    setAllItems([...newItems, ...updatedCatalog]);
+
+    const updatedCatalog = getAllPortfolioItems().map((it) => ({
+      ...it,
+      hidden: hiddenItemIds.has(it.id),
+      mediaType: videoOverrideIds.has(it.id) ? 'video' : it.mediaType,
+    }));
+    setAllItems(updatedCatalog);
   };
 
   // Permanently removes a custom item from the catalog (not just from one
@@ -224,18 +233,18 @@ export default function App() {
 
   // Update an existing item (rename, category change, labels, etc.)
   const handleUpdateItem = async (updatedItem: PortfolioItem) => {
-    const customItem: PortfolioItem = { ...updatedItem, custom: true };
+    const customItem: PortfolioItem = { ...updatedItem, custom: true, id: String(updatedItem.id) };
     await saveCustomItemToCloud(customItem);
 
-    const currentCustom = loadStoredCustomItems().filter((i) => i.id !== customItem.id);
+    const currentCustom = loadStoredCustomItems().filter((i) => String(i.id) !== String(customItem.id));
     const nextCustom = [customItem, ...currentCustom];
     saveStoredCustomItems(nextCustom);
 
     setAllItems((prev) =>
-      prev.map((it) => (it.id === customItem.id ? { ...customItem, hidden: it.hidden } : it))
+      prev.map((it) => (String(it.id) === String(customItem.id) ? { ...customItem, hidden: it.hidden } : it))
     );
 
-    if (selectedLightboxItem && selectedLightboxItem.id === customItem.id) {
+    if (selectedLightboxItem && String(selectedLightboxItem.id) === String(customItem.id)) {
       setSelectedLightboxItem(customItem);
     }
   };
@@ -373,7 +382,8 @@ export default function App() {
         isOpen={!!selectedLightboxItem}
         onClose={() => setSelectedLightboxItem(null)}
         onSelect={(item) => setSelectedLightboxItem(item)}
-        onEditItem={(item) => setEditingItem(item)}
+        isAdmin={isAdminAuthed === true && viewMode === 'admin'}
+        onEditItem={isAdminAuthed === true && viewMode === 'admin' ? (item) => setEditingItem(item) : undefined}
         isLiked={
           selectedLightboxItem && currentShowcase?.feedback?.[selectedLightboxItem.id]?.liked
         }

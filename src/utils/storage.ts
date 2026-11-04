@@ -1,4 +1,4 @@
-﻿import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle, PortfolioTemplate } from '../types/portfolio';
+import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle, PortfolioTemplate } from '../types/portfolio';
 import { initializeCatalog } from '../data/rawPortfolioData';
 import { THEMES } from '../data/themes';
 import { db } from './firebaseClient';
@@ -220,12 +220,16 @@ export async function saveCustomItemToCloud(item: PortfolioItem): Promise<void> 
 export async function saveCustomItemsToCloud(items: PortfolioItem[]): Promise<void> {
   if (items.length === 0) return;
   try {
-    const batch = writeBatch(db);
-    items.forEach((item) => batch.set(doc(db, CUSTOM_ITEMS_COLLECTION, item.id), stripUndefined(item)));
-    await batch.commit();
+    for (let i = 0; i < items.length; i += 400) {
+      const chunk = items.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach((item) =>
+        batch.set(doc(db, CUSTOM_ITEMS_COLLECTION, String(item.id)), stripUndefined(item))
+      );
+      await batch.commit();
+    }
   } catch (e) {
-    console.error('Failed to batch-save custom items to Firestore', e);
-    throw e;
+    console.warn('Failed to batch-save custom items to Firestore (cached locally):', e);
   }
 }
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -115,6 +115,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [isBulkLabeling, setIsBulkLabeling] = useState(false);
+  const [isApplyingBulkLabels, setIsApplyingBulkLabels] = useState(false);
   const [bulkLabelsInput, setBulkLabelsInput] = useState('');
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
@@ -379,6 +380,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsCreatingShowcase(false);
     setNewClientHeading('');
     confetti({ particleCount: 50, spread: 60 });
+  };
+
+  const handleApplyBulkLabels = async () => {
+    const parsedLabels = bulkLabelsInput
+      .split(/[,;\n]+/)
+      .map((s) => s.replace(/^#+/, '').trim().toLowerCase())
+      .filter(Boolean);
+
+    if (parsedLabels.length === 0) return;
+    setIsApplyingBulkLabels(true);
+
+    try {
+      const selectedList = allItems.filter(
+        (i) => selectedItemIds.has(i.id) || selectedItemIds.has(String(i.id))
+      );
+
+      const updatedItems: PortfolioItem[] = selectedList.map((item) => {
+        const mergedLabels = Array.from(new Set([...(item.labels || []), ...parsedLabels]));
+        const mergedKeywords = Array.from(new Set([...(item.keywords || []), ...parsedLabels]));
+        return {
+          ...item,
+          custom: true,
+          labels: mergedLabels,
+          keywords: mergedKeywords,
+        };
+      });
+
+      await onBulkAddItems(updatedItems);
+      confetti({ particleCount: 40, spread: 50 });
+      setBulkActionMessage(
+        `Added labels [${parsedLabels.map((l) => `#${l}`).join(', ')}] to ${updatedItems.length} item${
+          updatedItems.length > 1 ? 's' : ''
+        }.`
+      );
+      setBulkLabelsInput('');
+      setIsBulkLabeling(false);
+      clearSelection();
+    } catch (err) {
+      console.error('Failed to bulk apply labels:', err);
+      setBulkActionMessage('Failed to apply labels. Please try again.');
+    } finally {
+      setIsApplyingBulkLabels(false);
+    }
   };
 
   const handleToggleItemInShowcase = (itemId: string) => {
@@ -2054,31 +2098,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
 
             <button
-              onClick={() => setIsBulkAssigning((v) => !v)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+              type="button"
+              onClick={() => {
+                setIsBulkAssigning((v) => !v);
+                setIsBulkLabeling(false);
+                setIsSavingAsTemplate(false);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-space-grotesk font-bold cursor-pointer transition-colors ${
+                isBulkAssigning
+                  ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400'
+                  : 'bg-white/10 hover:bg-white/20 text-white'
+              }`}
             >
               <Folder className="w-3.5 h-3.5" /> Move to Category
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 setIsBulkLabeling((v) => !v);
                 setIsBulkAssigning(false);
                 setIsSavingAsTemplate(false);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-space-grotesk font-bold cursor-pointer transition-colors ${
+                isBulkLabeling
+                  ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400'
+                  : 'bg-white/10 hover:bg-white/20 text-white'
+              }`}
             >
               <Tag className="w-3.5 h-3.5" /> Add Labels
             </button>
 
             <button
-              onClick={() => setIsSavingAsTemplate((v) => !v)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+              type="button"
+              onClick={() => {
+                setIsSavingAsTemplate((v) => !v);
+                setIsBulkAssigning(false);
+                setIsBulkLabeling(false);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-space-grotesk font-bold cursor-pointer transition-colors ${
+                isSavingAsTemplate
+                  ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400'
+                  : 'bg-white/10 hover:bg-white/20 text-white'
+              }`}
             >
               <Layers className="w-3.5 h-3.5" /> Save as Template
             </button>
 
             <button
+              type="button"
               onClick={clearSelection}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer ml-auto"
             >
@@ -2106,11 +2174,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
                 />
                 <button
+                  type="button"
                   onClick={async () => {
                     if (!bulkCategoryValue.trim()) return;
-                    const itemsToUpdate = allItems.filter((i) => selectedItemIds.has(i.id) && i.custom);
-                    await bulkUpdateCustomItemsCategory(itemsToUpdate, bulkCategoryValue.trim(), bulkSubcategoryValue.trim() || undefined);
-                    setBulkActionMessage(`Moved ${itemsToUpdate.length} custom items to "${bulkCategoryValue.trim()}"${bulkSubcategoryValue.trim() ? ` / "${bulkSubcategoryValue.trim()}"` : ''}. Refresh to see changes reflected everywhere.`);
+                    const itemsToUpdate = allItems.filter(
+                      (i) => selectedItemIds.has(i.id) || selectedItemIds.has(String(i.id))
+                    );
+                    const updatedItems: PortfolioItem[] = itemsToUpdate.map((item) => ({
+                      ...item,
+                      custom: true,
+                      category: bulkCategoryValue.trim(),
+                      subcategory: bulkSubcategoryValue.trim() || undefined,
+                    }));
+                    await onBulkAddItems(updatedItems);
+                    confetti({ particleCount: 35, spread: 45 });
+                    setBulkActionMessage(
+                      `Moved ${updatedItems.length} items to "${bulkCategoryValue.trim()}"${
+                        bulkSubcategoryValue.trim() ? ` / "${bulkSubcategoryValue.trim()}"` : ''
+                      }.`
+                    );
                     setIsBulkAssigning(false);
                     setBulkCategoryValue('');
                     setBulkSubcategoryValue('');
@@ -2120,6 +2202,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 >
                   Apply
                 </button>
+              </div>
+            )}
+
+            {isBulkLabeling && (
+              <div className="w-full space-y-2 pt-2 border-t border-white/10 mt-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={bulkLabelsInput}
+                    onChange={(e) => setBulkLabelsInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyBulkLabels();
+                      }
+                    }}
+                    placeholder="Type labels separated by comma (e.g. cookie, packaging, logo) & click Apply"
+                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-indigo-400"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    disabled={isApplyingBulkLabels || !bulkLabelsInput.trim()}
+                    onClick={handleApplyBulkLabels}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-xs font-bold text-white cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    {isApplyingBulkLabels ? 'Applying...' : 'Apply Labels'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBulkLabeling(false);
+                      setBulkLabelsInput('');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white/80 cursor-pointer shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {allActiveLabels.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-white/50 font-mono">Suggestions:</span>
+                    {allActiveLabels.slice(0, 12).map((lbl) => (
+                      <button
+                        key={lbl}
+                        type="button"
+                        onClick={() => {
+                          const current = bulkLabelsInput
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          if (!current.includes(lbl)) {
+                            setBulkLabelsInput(
+                              current.length > 0 ? `${current.join(', ')}, ${lbl}` : lbl
+                            );
+                          }
+                        }}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 hover:bg-indigo-500 hover:text-white text-indigo-200 transition-colors cursor-pointer border border-white/10"
+                        title={`Click to add #${lbl}`}
+                      >
+                        +{lbl}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
