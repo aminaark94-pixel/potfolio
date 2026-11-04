@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   X, 
@@ -12,7 +12,8 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
-  Film
+  Film,
+  Edit3
 } from 'lucide-react';
 import { PortfolioItem, Showcase } from '../types/portfolio';
 import { THEMES } from '../data/themes';
@@ -25,6 +26,7 @@ interface CatalogExplorerProps {
   onOpenLightbox: (item: PortfolioItem) => void;
   onOpenCustomItemModal: () => void;
   onSetItemVideoOverride: (itemId: string, isVideo: boolean) => void;
+  onEditItem?: (item: PortfolioItem) => void;
 }
 
 export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
@@ -35,6 +37,7 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
   onOpenLightbox,
   onOpenCustomItemModal,
   onSetItemVideoOverride,
+  onEditItem,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -79,7 +82,8 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
         !q ||
         item.name.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q) ||
-        item.keywords.some((kw) => kw.toLowerCase().includes(q));
+        (item.keywords || []).some((kw) => kw.toLowerCase().includes(q)) ||
+        (item.labels || []).some((lbl) => lbl.toLowerCase().includes(q));
 
       return !item.hidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
@@ -302,6 +306,23 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
                   >
                     {item.name}
                   </h4>
+                  {item.labels && item.labels.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {item.labels.slice(0, 3).map((lbl) => (
+                        <span
+                          key={lbl}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSearchQuery(lbl);
+                          }}
+                          className="inline-flex items-center text-[10px] font-mono text-indigo-300 bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-500/30"
+                          title={`Filter by label: #${lbl}`}
+                        >
+                          #{lbl}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 pt-2 border-t border-white/5">
@@ -325,6 +346,16 @@ export const CatalogExplorer: React.FC<CatalogExplorerProps> = ({
                       </>
                     )}
                   </button>
+
+                  {onEditItem && (
+                    <button
+                      onClick={() => onEditItem(item)}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 cursor-pointer"
+                      title="Edit name, category & labels"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
                   <button
                     onClick={() => onOpenLightbox(item)}

@@ -30,6 +30,7 @@ import {
   Copy,
   GitMerge,
   Film,
+  Edit3,
   Play
 } from 'lucide-react';
 import { Showcase, PortfolioItem, ThemeId, HeroStyle, PortfolioTemplate } from '../types/portfolio';
@@ -70,7 +71,8 @@ interface AdminPanelProps {
   onOpenClientView: () => void;
   onOpenLightbox: (item: PortfolioItem) => void;
   onOpenCustomItemModal: () => void;
-  onOpenDownloadModal: () => void;
+  onOpenDownloadModal?: () => void;
+  onEditItem?: (item: PortfolioItem) => void;
   onBulkAddItems: (items: PortfolioItem[]) => Promise<void>;
   onDeleteCustomItem: (itemId: string) => Promise<void>;
   onSetItemHidden: (itemId: string, hidden: boolean) => Promise<void>;
@@ -93,6 +95,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteCustomItem,
   onSetItemHidden,
   onSetItemVideoOverride,
+  onEditItem,
 }) => {
   const currentShowcase = showcases[activeSlug] || Object.values(showcases)[0];
   const theme = currentShowcase ? THEMES[currentShowcase.theme] || THEMES.rust : THEMES.rust;
@@ -111,6 +114,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Bulk-select state for the manual catalog picker
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [isBulkLabeling, setIsBulkLabeling] = useState(false);
+  const [bulkLabelsInput, setBulkLabelsInput] = useState('');
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [isRenamingWithAI, setIsRenamingWithAI] = useState(false);
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
@@ -306,7 +311,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         !q ||
         item.name.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q) ||
-        item.keywords.some((kw) => kw.toLowerCase().includes(q));
+        (item.keywords || []).some((kw) => kw.toLowerCase().includes(q)) ||
+        (item.labels || []).some((lbl) => lbl.toLowerCase().includes(q));
 
       return !item.hidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
@@ -1939,6 +1945,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
 
             <button
+              onClick={() => {
+                setIsBulkLabeling((v) => !v);
+                setIsBulkAssigning(false);
+                setIsSavingAsTemplate(false);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
+            >
+              <Tag className="w-3.5 h-3.5" /> Add Labels
+            </button>
+
+            <button
               onClick={() => setIsSavingAsTemplate((v) => !v)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-space-grotesk font-bold cursor-pointer"
             >
@@ -2169,6 +2186,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       {item.name}
                     </h4>
+                    {item.labels && item.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.labels.slice(0, 3).map((lbl) => (
+                          <span
+                            key={lbl}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSearchQuery(lbl);
+                              setCurrentPage(1);
+                            }}
+                            className="inline-flex items-center text-[10px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-100"
+                            title={`Filter by label: #${lbl}`}
+                          >
+                            #{lbl}
+                          </span>
+                        ))}
+                        {item.labels.length > 3 && (
+                          <span className="text-[10px] font-mono text-slate-400">+{item.labels.length - 3}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
@@ -2192,6 +2230,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </>
                       )}
                     </button>
+
+                    {onEditItem && (
+                      <button
+                        onClick={() => onEditItem(item)}
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 cursor-pointer"
+                        title="Edit name, category & labels"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     <button
                       onClick={() => onOpenLightbox(item)}

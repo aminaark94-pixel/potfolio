@@ -1,4 +1,4 @@
-export type MediaType = 'image' | 'video' | 'gif' | 'pdf' | 'webp';
+﻿export type MediaType = 'image' | 'video' | 'gif' | 'pdf' | 'webp';
 
 export interface PortfolioItem {
   id: string;
@@ -12,6 +12,7 @@ export interface PortfolioItem {
   thumb_large: string | null;
   mediaType: MediaType;
   keywords: string[];
+  labels?: string[];
   custom?: boolean;
   featured?: boolean;
   // Hidden from browse/search everywhere in the admin catalog, WITHOUT

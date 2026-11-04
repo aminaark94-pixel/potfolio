@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -11,7 +11,8 @@ import {
   Download, 
   Share2, 
   Tag, 
-  Folder
+  Folder,
+  Edit3
 } from 'lucide-react';
 import { PortfolioItem, ThemeConfig } from '../types/portfolio';
 import { getDriveVideoEmbed } from '../data/rawPortfolioData';
@@ -59,6 +60,7 @@ interface LightboxModalProps {
   onSelect: (item: PortfolioItem) => void;
   onToggleLike?: (itemId: string) => void;
   isLiked?: boolean;
+  onEditItem?: (item: PortfolioItem) => void;
 }
 
 export const LightboxModal: React.FC<LightboxModalProps> = ({
@@ -70,6 +72,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   onSelect,
   onToggleLike,
   isLiked = false,
+  onEditItem,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [copied, setCopied] = useState(false);
@@ -275,7 +278,16 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                   {item.category}
                 </span>
 
-                {item.keywords && item.keywords.slice(0, 3).map((kw, idx) => (
+                {item.labels && item.labels.map((lbl) => (
+                  <span
+                    key={lbl}
+                    className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200"
+                  >
+                    #{lbl}
+                  </span>
+                ))}
+
+                {(!item.labels || item.labels.length === 0) && item.keywords && item.keywords.slice(0, 3).map((kw, idx) => (
                   <span
                     key={idx}
                     className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200"
@@ -288,6 +300,17 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
+              {onEditItem && (
+                <button
+                  onClick={() => onEditItem(item)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-xs font-space-grotesk font-bold text-indigo-700 transition-all cursor-pointer"
+                  title="Rename, change category, or add labels"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Details</span>
+                </button>
+              )}
+
               <button
                 onClick={handleCopyLink}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-space-grotesk font-semibold text-slate-700 transition-all cursor-pointer"

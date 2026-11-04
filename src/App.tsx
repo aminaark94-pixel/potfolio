@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminLogin } from './components/AdminLogin';
@@ -6,6 +6,7 @@ import { ClientShowcaseView } from './components/ClientShowcaseView';
 import { CatalogExplorer } from './components/CatalogExplorer';
 import { LightboxModal } from './components/LightboxModal';
 import { AddCustomItemModal } from './components/AddCustomItemModal';
+import { EditItemModal } from './components/EditItemModal';
 import { Showcase, PortfolioItem } from './types/portfolio';
 import { THEMES } from './data/themes';
 import {
@@ -60,6 +61,7 @@ export default function App() {
   // Modals state
   const [selectedLightboxItem, setSelectedLightboxItem] = useState<PortfolioItem | null>(null);
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState<boolean>(false);
+  const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
 
   // Initialize data on mount — loads from the shared Firestore database so
   // every device/browser (including a client opening a shared link) sees
@@ -220,6 +222,24 @@ export default function App() {
     );
   };
 
+  // Update an existing item (rename, category change, labels, etc.)
+  const handleUpdateItem = async (updatedItem: PortfolioItem) => {
+    const customItem: PortfolioItem = { ...updatedItem, custom: true };
+    await saveCustomItemToCloud(customItem);
+
+    const currentCustom = loadStoredCustomItems().filter((i) => i.id !== customItem.id);
+    const nextCustom = [customItem, ...currentCustom];
+    saveStoredCustomItems(nextCustom);
+
+    setAllItems((prev) =>
+      prev.map((it) => (it.id === customItem.id ? { ...customItem, hidden: it.hidden } : it))
+    );
+
+    if (selectedLightboxItem && selectedLightboxItem.id === customItem.id) {
+      setSelectedLightboxItem(customItem);
+    }
+  };
+
   const handleDeleteCustomItem = async (itemId: string) => {
     await deleteCustomItemFromCloud(itemId);
 
@@ -316,6 +336,7 @@ export default function App() {
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
             onBulkAddItems={handleBulkAddItems}
             onDeleteCustomItem={handleDeleteCustomItem}
+            onEditItem={(item) => setEditingItem(item)}
           />
         )}
 
@@ -339,6 +360,7 @@ export default function App() {
             onOpenLightbox={(item) => setSelectedLightboxItem(item)}
             onOpenCustomItemModal={() => setIsCustomItemModalOpen(true)}
             onSetItemVideoOverride={handleSetItemVideoOverride}
+            onEditItem={(item) => setEditingItem(item)}
           />
         )}
       </div>
@@ -351,6 +373,7 @@ export default function App() {
         isOpen={!!selectedLightboxItem}
         onClose={() => setSelectedLightboxItem(null)}
         onSelect={(item) => setSelectedLightboxItem(item)}
+        onEditItem={(item) => setEditingItem(item)}
         isLiked={
           selectedLightboxItem && currentShowcase?.feedback?.[selectedLightboxItem.id]?.liked
         }
@@ -380,6 +403,15 @@ export default function App() {
         onAddItem={handleAddCustomItem}
         availableCategories={availableCategories}
         allItems={allItems}
+      />
+
+      {/* Edit Item Modal */}
+      <EditItemModal
+        isOpen={!!editingItem}
+        item={editingItem}
+        allItems={allItems}
+        onClose={() => setEditingItem(null)}
+        onSave={handleUpdateItem}
       />
     </div>
   );
