@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Tag, Folder, Edit3, Plus, Check, Film, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { X, Tag, Folder, Edit3, Check, Film, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { PortfolioItem, MediaType } from '../types/portfolio';
 
 interface EditItemModalProps {
@@ -72,18 +72,24 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   if (!isOpen || !item) return null;
 
   const handleAddTag = (rawTag: string) => {
-    const cleaned = rawTag.trim().toLowerCase().replace(/^#+/, '');
-    if (!cleaned) return;
-    if (labels.includes(cleaned)) {
-      setTagInput('');
-      return;
-    }
-    setLabels([...labels, cleaned]);
+    if (!rawTag) return;
+    const pieces = rawTag
+      .split(',')
+      .map((t) => t.trim().toLowerCase().replace(/^#+/, ''))
+      .filter(Boolean);
+    if (pieces.length === 0) return;
+    setLabels((prev) => {
+      const next = [...prev];
+      pieces.forEach((p) => {
+        if (!next.includes(p)) next.push(p);
+      });
+      return next;
+    });
     setTagInput('');
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setLabels(labels.filter((t) => t !== tagToRemove));
+    setLabels((prev) => prev.filter((t) => t !== tagToRemove));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,22 +109,37 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       setIsSaving(true);
       setErrorMsg(null);
 
+      // Auto-commit any text still typed in the tag input!
+      const finalLabels = [...labels];
+      if (tagInput.trim()) {
+        const typedTags = tagInput
+          .split(',')
+          .map((t) => t.trim().toLowerCase().replace(/^#+/, ''))
+          .filter(Boolean);
+        typedTags.forEach((t) => {
+          if (!finalLabels.includes(t)) {
+            finalLabels.push(t);
+          }
+        });
+      }
+
       // Merge labels into keywords as well so search finds them everywhere
       const mergedKeywords = Array.from(
         new Set([
           ...(item.keywords || []),
-          ...labels.map((l) => l.toLowerCase()),
+          ...finalLabels.map((l) => l.toLowerCase()),
           ...finalCategory.toLowerCase().split(/\s+/).filter(Boolean),
         ])
       );
 
       const updated: PortfolioItem = {
         ...item,
+        id: String(item.id),
         name: name.trim(),
         category: finalCategory,
         subcategory: subcategory.trim() || undefined,
         mediaType,
-        labels,
+        labels: finalLabels,
         keywords: mergedKeywords,
         custom: true, // mark custom so it overrides static catalog
       };
@@ -158,7 +179,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -184,9 +205,16 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">Item ID: {item.id}</p>
                 <p className="text-sm font-semibold text-slate-800 truncate">{item.name}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold">
-                  {item.category}
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold">
+                    {item.category}
+                  </span>
+                  {labels.length > 0 && (
+                    <span className="text-[10px] font-mono text-slate-500">
+                      {labels.length} label{labels.length > 1 ? 's' : ''} attached
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -199,7 +227,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Minimalist Coffee Shop Logo"
+                placeholder="e.g. Coo Kies Cookie Brand Identity & Packaging"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 required
               />
@@ -291,49 +319,62 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 <input
                   type="text"
                   value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.includes(',')) {
+                      handleAddTag(val);
+                    } else {
+                      setTagInput(val);
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       handleAddTag(tagInput);
                     }
                   }}
-                  placeholder="Type a label (e.g. client-favorite, luxury, black) and press Enter"
+                  onBlur={() => {
+                    if (tagInput.trim()) {
+                      handleAddTag(tagInput);
+                    }
+                  }}
+                  placeholder="Type label (e.g. cookie, packaging, client-pick) and press Enter"
                   className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <button
                   type="button"
                   onClick={() => handleAddTag(tagInput)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold font-space-grotesk transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold font-space-grotesk transition-colors cursor-pointer border border-indigo-200"
                 >
                   Add Label
                 </button>
               </div>
 
-              {/* Current Active Labels */}
-              {labels.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100 min-h-[38px] items-center">
-                  {labels.map((lbl) => (
+              {/* Current Active Labels Badge Container */}
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 min-h-[46px] flex flex-wrap gap-1.5 items-center">
+                {labels.length > 0 ? (
+                  labels.map((lbl) => (
                     <span
                       key={lbl}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 text-xs font-medium border border-indigo-200"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium shadow-sm"
                     >
                       <span>#{lbl}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(lbl)}
-                        className="hover:text-rose-600 transition-colors ml-0.5"
+                        className="hover:text-rose-200 transition-colors ml-0.5 cursor-pointer"
+                        title="Remove tag"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 italic">
-                  No labels added yet. Items with labels can be searched easily in the search bar!
-                </p>
-              )}
+                  ))
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Type a label above (e.g. cookie, packaging) and it will appear here as a tag!
+                  </p>
+                )}
+              </div>
 
               {/* Quick suggestions */}
               {suggestedLabels.length > 0 && (

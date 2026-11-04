@@ -302,17 +302,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filtered Catalog Items
   const filteredCatalog = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const rawQ = searchQuery.toLowerCase().trim();
+    const cleanQ = rawQ.replace(/^#+/, '').trim();
+    const isTagSearch = rawQ.startsWith('#');
     return allItems.filter((item) => {
-      const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
-      const matchSubcat = selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
+      const matchCat = isTagSearch || selectedCategory === 'All' || item.category === selectedCategory;
+      const matchSubcat = isTagSearch || selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
       const matchMedia = mediaFilter === 'all' || item.mediaType === mediaFilter;
       const matchQuery =
-        !q ||
-        item.name.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q) ||
-        (item.keywords || []).some((kw) => kw.toLowerCase().includes(q)) ||
-        (item.labels || []).some((lbl) => lbl.toLowerCase().includes(q));
+        !cleanQ ||
+        item.name.toLowerCase().includes(cleanQ) ||
+        item.category.toLowerCase().includes(cleanQ) ||
+        (item.subcategory && item.subcategory.toLowerCase().includes(cleanQ)) ||
+        (item.keywords || []).some((kw) => kw.toLowerCase().includes(cleanQ) || cleanQ.includes(kw.toLowerCase())) ||
+        (item.labels || []).some((lbl) => lbl.toLowerCase().includes(cleanQ) || cleanQ.includes(lbl.toLowerCase()));
 
       return !item.hidden && matchCat && matchSubcat && matchMedia && matchQuery;
     });
@@ -326,6 +329,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   }, [filteredCatalog, currentPage, pageSize]);
 
   // Selected items in current showcase
+  const allActiveLabels = useMemo(() => {
+    const set = new Set<string>();
+    allItems.forEach((it) => {
+      (it.labels || []).forEach((l) => {
+        if (l && l.trim()) set.add(l.trim().toLowerCase());
+      });
+    });
+    return Array.from(set).sort();
+  }, [allItems]);
+
   const selectedItems = useMemo(() => {
     if (!currentShowcase) return [];
     return currentShowcase.item_ids
@@ -1642,8 +1655,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="absolute bottom-6 right-1 p-0.5 rounded bg-slate-900/70 text-white/70 opacity-0 group-hover:opacity-100 transition-all">
                       <GripVertical className="w-2.5 h-2.5" />
                     </span>
-                    <div className="p-1 text-[10px] font-space-grotesk text-slate-700 font-medium truncate">
-                      {item.name}
+                    {onEditItem && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditItem(item);
+                        }}
+                        className="absolute top-1 left-1 p-1 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                        title="Edit name, category & labels"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+                    )}
+                    <div className="p-1">
+                      <div className="text-[10px] font-space-grotesk text-slate-700 font-medium truncate" title={item.name}>
+                        {item.name}
+                      </div>
+                      {item.labels && item.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {item.labels.slice(0, 2).map((lbl) => (
+                            <span
+                              key={lbl}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchQuery(lbl);
+                                setSelectedCategory('All');
+                              }}
+                              className="text-[8px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1 py-0.2 rounded hover:bg-indigo-100 cursor-pointer"
+                              title={`Filter by #${lbl}`}
+                            >
+                              #{lbl}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1736,9 +1782,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span className="absolute bottom-6 right-1 p-0.5 rounded bg-slate-900/70 text-white/70 opacity-0 group-hover:opacity-100 transition-all">
                           <GripVertical className="w-2.5 h-2.5" />
                         </span>
-                        <div className="p-1 text-[10px] font-space-grotesk text-slate-700 font-medium truncate">
-                          {item.name}
+                    {onEditItem && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditItem(item);
+                        }}
+                        className="absolute top-1 left-1 p-1 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                        title="Edit name, category & labels"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+                    )}
+                    <div className="p-1">
+                      <div className="text-[10px] font-space-grotesk text-slate-700 font-medium truncate" title={item.name}>
+                        {item.name}
+                      </div>
+                      {item.labels && item.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {item.labels.slice(0, 2).map((lbl) => (
+                            <span
+                              key={lbl}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchQuery(lbl);
+                                setSelectedCategory('All');
+                              }}
+                              className="text-[8px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1 py-0.2 rounded hover:bg-indigo-100 cursor-pointer"
+                              title={`Filter by #${lbl}`}
+                            >
+                              #{lbl}
+                            </span>
+                          ))}
                         </div>
+                      )}
+                    </div>
                       </div>
                     ))}
                   </div>
@@ -1783,7 +1862,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search by keywords, title, category, format (e.g. packaging, luxury, tech)..."
+              placeholder="Search by labels (#tag), title, category, keywords..."
               className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-10 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1834,6 +1913,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </select>
           </div>
         </div>
+
+{/* Active Labels Bar */}
+        {allActiveLabels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 p-3 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+            <span className="text-[11px] font-space-grotesk font-bold text-slate-500 flex items-center gap-1 shrink-0">
+              <Tag className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Active Labels:</span>
+            </span>
+            {allActiveLabels.map((lbl) => {
+              const isActive = searchQuery.toLowerCase().replace(/^#+/, '').trim() === lbl;
+              return (
+                <button
+                  key={lbl}
+                  type="button"
+                  onClick={() => {
+                    if (isActive) {
+                      setSearchQuery('');
+                    } else {
+                      setSearchQuery(lbl);
+                      setSelectedCategory('All');
+                      setCurrentPage(1);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
+                      : 'bg-white hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                  }`}
+                  title={`Filter by label: #${lbl}`}
+                >
+                  <span>#{lbl}</span>
+                  {isActive && <X className="w-3 h-3 ml-0.5" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Category Pills Scroller */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2">

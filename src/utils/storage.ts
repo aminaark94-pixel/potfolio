@@ -1,4 +1,4 @@
-import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle, PortfolioTemplate } from '../types/portfolio';
+﻿import { Showcase, PortfolioItem, UserProfile, CoverLetterStyle, PortfolioTemplate } from '../types/portfolio';
 import { initializeCatalog } from '../data/rawPortfolioData';
 import { THEMES } from '../data/themes';
 import { db } from './firebaseClient';
@@ -210,10 +210,9 @@ export async function loadCustomItemsFromCloud(): Promise<PortfolioItem[]> {
 /** Writes a single custom item to the shared Firestore database. */
 export async function saveCustomItemToCloud(item: PortfolioItem): Promise<void> {
   try {
-    await setDoc(doc(db, CUSTOM_ITEMS_COLLECTION, item.id), stripUndefined(item));
+    await setDoc(doc(db, CUSTOM_ITEMS_COLLECTION, String(item.id)), stripUndefined(item));
   } catch (e) {
-    console.error('Failed to save custom item to Firestore', e);
-    throw e;
+    console.warn('Failed to save custom item to Firestore (cached locally):', e);
   }
 }
 
@@ -276,8 +275,8 @@ export function getAllPortfolioItems(): PortfolioItem[] {
   // A custom entry sharing an id with a base item is an *override*
   // (e.g. the original item was renamed/edited), not a duplicate —
   // so the base copy is dropped in favour of the custom one.
-  const overriddenIds = new Set(custom.map((c) => c.id));
-  const filteredBase = base.filter((b) => !overriddenIds.has(b.id));
+  const overriddenIds = new Set(custom.map((c) => String(c.id)));
+  const filteredBase = base.filter((b) => !overriddenIds.has(String(b.id)));
   return [...custom, ...filteredBase];
 }
 
