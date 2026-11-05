@@ -692,6 +692,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
   onToggleLike,
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   return (
     <motion.div
@@ -703,14 +704,31 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
     >
       {/* Image Wrap — pure image tile, no text, reference-gallery style */}
       <div className="relative bg-black/20 overflow-hidden rounded-2xl group/image">
-        {/* For videos, show thumbnail with play button overlay */}
-        {isVideoItem(item) ? (
+        {imageError ? (
+          <div className="w-full aspect-[4/3] flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-slate-800 to-slate-950 text-white">
+            {isVideoItem(item) ? (
+              <div className="w-12 h-12 rounded-full bg-indigo-600/40 border border-indigo-400/30 flex items-center justify-center text-white mb-2 shadow-lg">
+                <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/70 mb-2">
+                <Maximize2 className="w-5 h-5" />
+              </div>
+            )}
+            <span className="text-xs font-space-grotesk font-bold line-clamp-2 px-2 text-white/90">
+              {item.name}
+            </span>
+          </div>
+        ) : isVideoItem(item) ? (
           <>
             <img
               src={item.thumb || item.thumb_large || ''}
               alt={item.name}
               loading="lazy"
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
               className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover/image:scale-[1.04] ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
@@ -730,6 +748,7 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
             alt={item.name}
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
             className={`w-full h-auto object-cover transition-all duration-500 ease-out group-hover:scale-[1.04] ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}

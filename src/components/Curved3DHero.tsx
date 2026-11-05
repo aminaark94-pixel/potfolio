@@ -37,6 +37,7 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartOffset, setDragStartOffset] = useState(0);
+  const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
   const requestRef = useRef(0);
   const targetOffsetRef = useRef(0);
@@ -156,12 +157,14 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
             const zIndex = Math.round(100 - Math.abs(diff) * 10);
             const isCenter = Math.abs(diff) < 0.5;
             const thumb = item.thumb_large || item.thumb || item.thumb_small || '';
+            const isFailed = failedThumbs.has(String(item.id));
+            const isVideo = item.mediaType === 'video' || (item.name && (item.name.toLowerCase().includes('video') || item.name.toLowerCase().includes('ugc') || item.name.toLowerCase().includes('reel')));
 
             return (
               <div
                 key={item.id}
                 onClick={() => goTo(i)}
-                className="absolute top-1/2 left-1/2 w-[200px] sm:w-[260px] md:w-[300px] h-[240px] sm:h-[300px] md:h-[340px] -mt-[120px] sm:-mt-[150px] md:-mt-[170px] -ml-[100px] sm:-ml-[130px] md:-ml-[150px] rounded-3xl cursor-pointer will-change-transform pointer-events-auto overflow-hidden shadow-2xl glass-hairline"
+                className="absolute top-1/2 left-1/2 w-[200px] sm:w-[260px] md:w-[300px] h-[240px] sm:h-[300px] md:h-[340px] -mt-[120px] sm:-mt-[150px] md:-mt-[170px] -ml-[100px] sm:-ml-[130px] md:-ml-[150px] rounded-3xl cursor-pointer will-change-transform pointer-events-auto overflow-hidden shadow-2xl glass-hairline bg-slate-900"
                 style={{
                   transformStyle: 'preserve-3d',
                   transform: `translateX(${translateX}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
@@ -169,10 +172,51 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
                   zIndex,
                 }}
               >
-                {thumb ? (
-                  <img src={thumb} alt={item.name} draggable={false} className="w-full h-full object-cover pointer-events-none" />
+                {thumb && !isFailed ? (
+                  <>
+                    <img 
+                      src={thumb} 
+                      alt="" 
+                      draggable={false} 
+                      onError={() => setFailedThumbs((prev) => new Set([...prev, String(item.id)]))}
+                      className="w-full h-full object-cover pointer-events-none" 
+                    />
+                    {isVideo && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                        <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-slate-900 shadow-xl">
+                          <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="w-full h-full" style={{ background: theme.gradientFrom }} />
+                  <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-slate-800 to-slate-950 text-white relative">
+                    {isVideo ? (
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 mb-3 shadow-lg">
+                        <svg className="w-7 h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white/70 mb-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" strokeWidth="2" />
+                          <polyline points="21 15 16 10 5 21" strokeWidth="2" />
+                        </svg>
+                      </div>
+                    )}
+                    <span className="text-xs font-space-grotesk font-bold line-clamp-2 px-2 text-white/90">
+                      {item.name}
+                    </span>
+                    {isVideo && (
+                      <span className="mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/10 text-indigo-300">
+                        VIDEO
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 {/* Mirror floor reflection */}
@@ -184,7 +228,7 @@ export const Curved3DHero: React.FC<Curved3DHeroProps> = ({
                     WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 80%)',
                   }}
                 >
-                  {thumb && <img src={thumb} alt="" className="w-full h-full object-cover" />}
+                  {thumb && !isFailed && <img src={thumb} alt="" className="w-full h-full object-cover" />}
                 </div>
               </div>
             );
